@@ -1,4 +1,5 @@
-from setuptools import setup
+import glob
+from setuptools import setup, find_packages
 
 AUTHOR_INFO = [
   ("Gianmauro Cuccuru", "gianmauro.cuccuru@crs4.it"),
@@ -10,7 +11,7 @@ AUTHOR = ", ".join(t[0] for t in AUTHOR_INFO)
 AUTHOR_EMAIL = ", ".join("<%s>" % t[1] for t in AUTHOR_INFO)
 MAINTAINER = ", ".join(t[0] for t in MAINTAINER_INFO)
 MAINTAINER_EMAIL = ", ".join("<%s>" % t[1] for t in MAINTAINER_INFO)
-PACKAGES = ['app', 'app.celery']
+PACKAGES = ['presta', 'presta.app', 'presta.app.celery']
 
 setup(name="presta",
       version='0.1',
@@ -20,7 +21,8 @@ setup(name="presta",
       maintainer=MAINTAINER,
       maintainer_email=MAINTAINER_EMAIL,
       install_requires=['alta', 'celery', 'drmaa'],
-      packages=PACKAGES,
+      scripts=glob.glob('scripts/*'),
+      packages=find_packages(),
       dependency_links=[
         "https://github.com/gmauro/alta/tarball/master#egg=alta",
       ],

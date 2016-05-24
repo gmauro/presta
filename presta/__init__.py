@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import argparse
 import os.path
 import sys
@@ -54,6 +53,3 @@ def main(argv):
 
     res = bcl2fastq.delay(rd_path, ds_path, ss_file)
 
-
-if __name__ == '__main__':
-    main(sys.argv[1:])
