@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python presta_main.py "${@}"
