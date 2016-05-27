@@ -4,18 +4,26 @@ from . import app
 import drmaa
 import os
 import shlex, subprocess
+import shutil
 
 from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
 
 
-@app.task
-def rd_is_ended(rd_path, output_path, samplesheet_path):
-    return True
+@app.task(name='presta.app.tasks.rd_completed')
+def rd_completed(rd_path):
+    illumina_last_file = 'RTAComplete.txt'
+    localroot, dirnames, filenames = os.walk(rd_path).next()
+    return True if illumina_last_file in filenames else False
 
 
-@app.task
+@app.task(name='presta.app.tasks.rd_move', ignore_result=True)
+def rd_move(src, dest):
+    return shutil.move(src, dest)
+
+
+@app.task(name='presta.app.tasks.bcl2fastq')
 def bcl2fastq(rd_path, output_path, samplesheet_path):
     command = 'bcl2fastq'
     rd_arg = '-R {}'.format(rd_path)
