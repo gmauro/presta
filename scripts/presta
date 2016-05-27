@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from presta import main
+from presta.rundir import main
 
 import sys
 

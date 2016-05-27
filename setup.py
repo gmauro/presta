@@ -11,10 +11,10 @@ AUTHOR = ", ".join(t[0] for t in AUTHOR_INFO)
 AUTHOR_EMAIL = ", ".join("<%s>" % t[1] for t in AUTHOR_INFO)
 MAINTAINER = ", ".join(t[0] for t in MAINTAINER_INFO)
 MAINTAINER_EMAIL = ", ".join("<%s>" % t[1] for t in MAINTAINER_INFO)
-PACKAGES = ['presta', 'presta.app', 'presta.app.celery']
+PACKAGES = ['presta', 'presta.app']
 
 setup(name="presta",
-      version='0.1',
+      version='0.2',
       description="Utility to process sequencing data",
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
