@@ -1,10 +1,10 @@
 from __future__ import absolute_import
 
 from . import app
-import drmaa
 import os
-import shlex, subprocess
+import shlex
 import shutil
+import subprocess
 
 from celery.utils.log import get_task_logger
 
@@ -57,36 +57,3 @@ def runJob(cmd):
         return False
 
 
-def bcl2fastqGE(rd, ss_filename='samplesheet.csv', ds_dirname='datasets'):
-    home = os.path.expanduser("~")
-
-    jt = {'jobname': '_'.join(['bcl2fastq', rd]),
-          'nativespecification': '-q eolo -l eolo=1 -l exclusive=True',
-          'remotecommand': os.path.join(home, 'ge_scripts', 'run_bcl2fastq.sh'),
-          'args': [rd, ss_filename, ds_dirname]
-          }
-
-    return runGEJob(jt)
-
-
-@app.task
-def testGE():
-    home = os.path.expanduser("~")
-
-    jt = {'jobname': 'testGE',
-          'nativespecification': '-q eolo -l eolo=1',
-          'remotecommand': os.path.join(home, 'ge_scripts', 'test_ge.sh')
-          }
-
-    return runGEJob(jt)
-
-
-def runGEJob(jt):
-    with drmaa.Session() as s:
-        jobid = s.runJob(**jt)
-        print('Your job has been submitted with ID %s' % jobid)
-
-        print('Cleaning up')
-        s.deleteJobTemplate(jt)
-
-        return jobid

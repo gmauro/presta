@@ -1,0 +1,6 @@
+irods:
+    host: localhost
+    port: 1247
+    zone: tempZone
+    user: iuser
+    password: irods123

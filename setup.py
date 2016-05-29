@@ -11,7 +11,6 @@ AUTHOR = ", ".join(t[0] for t in AUTHOR_INFO)
 AUTHOR_EMAIL = ", ".join("<%s>" % t[1] for t in AUTHOR_INFO)
 MAINTAINER = ", ".join(t[0] for t in MAINTAINER_INFO)
 MAINTAINER_EMAIL = ", ".join("<%s>" % t[1] for t in MAINTAINER_INFO)
-PACKAGES = ['presta', 'presta.app']
 
 setup(name="presta",
       version='0.2',
@@ -20,9 +19,11 @@ setup(name="presta",
       author_email=AUTHOR_EMAIL,
       maintainer=MAINTAINER,
       maintainer_email=MAINTAINER_EMAIL,
-      install_requires=['alta', 'celery', 'drmaa'],
+      install_requires=['alta>=0.5', 'celery', 'drmaa'],
       scripts=glob.glob('scripts/*'),
       packages=find_packages(),
+      include_package_data=True,
+      zip_safe=False,
       dependency_links=[
         "https://github.com/gmauro/alta/tarball/master#egg=alta",
       ],
