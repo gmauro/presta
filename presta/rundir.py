@@ -27,7 +27,8 @@ class WeightedPath(object):
 def make_parser():
     parser = argparse.ArgumentParser(prog='presta',
                                      description='Preprocessing of sequencing data')
-    parser.add_argument('--config_file', type=str, help='configuration file')
+    parser.add_argument('--config_file', type=str, help='configuration file',
+                        default=None)
     parser.add_argument('--logfile', type=str, help='log file ('
                                                     'default=stderr).')
     parser.add_argument('--loglevel', type=str, help='logger level.',
@@ -53,12 +54,11 @@ def make_parser():
 def paths_setup(logger, cf_from_cli=None):
     home = os.path.expanduser("~")
     presta_config_from_home = os.path.join(home, 'presta',
-                                           'config/presta_config.yml')
+                                           'presta_config.yml')
     presta_config_from_package = resource_filename('presta',
                                                    'config/presta_config.yml')
     config_file_paths = []
-    if cf_from_cli:
-        path_exists(cf_from_cli, logger, force=False)
+    if cf_from_cli and path_exists(cf_from_cli, logger, force=False):
         config_file_paths.append(WeightedPath(cf_from_cli, 0))
     if path_exists(presta_config_from_home, logger, force=False):
         config_file_paths.append(WeightedPath(presta_config_from_home, 1))
