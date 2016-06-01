@@ -3,15 +3,14 @@ import argparse
 from alta.utils import a_logger, LOG_LEVELS
 from importlib import import_module
 
-
 SUBMOD_NAMES = [
-  "check_rundirs",
-  ]
+    "check_rundirs",
+    "proc_rundir"
+]
 SUBMODULES = [import_module("%s.%s" % (__package__, n)) for n in SUBMOD_NAMES]
 
 
 class App(object):
-
     def __init__(self):
         self.supported_submodules = []
         for m in SUBMODULES:
@@ -46,6 +45,5 @@ def main(argv):
     parser = app.make_parser()
     args = parser.parse_args(argv)
     logger = a_logger('main', level=args.loglevel, filename=args.logfile)
+
     args.func(logger, args)
-
-

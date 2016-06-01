@@ -2,16 +2,50 @@
 Utilities used by other modules.
 """
 
+import csv
 import os
 import sys
 
+from alta import ConfigurationFromYamlFile
 from pkg_resources import resource_filename
+
+
+class IEMSampleSheetReader(csv.DictReader):
+    """
+    Illumina Experimental Manager SampleSheet reader.
+    """
+    def __init__(self, f):
+        csv.DictReader.__init__(self, f, delimiter=',')
+        self.header = None
+        self.body = None
+        magic = f.readline()
+        if not magic.startswith('[Header]'):
+            raise ValueError('%s is not an IEM SampleSheet' % f.name)
+        header = []
+        l = f.readline()
+        while not l.startswith('[Data]'):
+            header.append(l.strip())  # ms-dos sanitation
+            l = f.readline()
+        else:
+            self.header = header
+        self.body = csv.DictReader(f.readlines(), delimiter=',')
+
+    def replace_column(self, label='Sample_Name', new_value=''):
+        for r in self.body:
+            r[label] = new_value
+
+
+def get_conf(logger, config_file):
+    config_file_path = paths_setup(logger, config_file)
+
+    # Load YAML configuration file
+    return ConfigurationFromYamlFile(config_file_path)
 
 
 def path_exists(path, logger, force=True):
     def file_missing(path, logger, force):
         if force:
-            logger.error("{} doesn't exists".format(path))
+            logger.error("path - {} - doesn't exists".format(path))
             sys.exit()
         return False
 

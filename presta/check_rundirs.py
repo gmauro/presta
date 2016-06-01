@@ -1,18 +1,24 @@
 import os
 
-from presta.utils import path_exists
+from presta.utils import path_exists, get_conf
 from presta.app.tasks import rd_completed
 
 
 class RundirsRootpath(object):
-    def __init__(self, root_path=None, logger=None):
-        self.root_path = root_path
+    def __init__(self, args=None, logger=None):
         self.logger = logger
+        self.root_path = ''
+        if args.root_path:
+            self.root_path = args.root_path
+        else:
+            conf = get_conf(logger, args.config_file)
+            io_conf = conf.get_io_section()
+            if 'rundirs_root_path' in io_conf:
+                self.root_path = io_conf['rundirs_root_path']
 
     def check(self):
         path_exists(self.root_path, self.logger)
         localroot, dirnames, filenames = os.walk(self.root_path).next()
-
         running = []
         completed = []
         for d in dirnames:
@@ -20,6 +26,7 @@ class RundirsRootpath(object):
                 completed.append(d)
             else:
                 running.append(d)
+        self.logger.info('Checking rundirs in: {}'.format(self.root_path))
         self.logger.info('Rundir running:')
         for d in running:
             self.logger.info('{}'.format(d))
@@ -29,17 +36,17 @@ class RundirsRootpath(object):
 
 
 help_doc = """
-Print the state of rundirs from a root path
+Starting from a root path, print the state of all the rundirs found.
 """
 
 
 def make_parser(parser):
     parser.add_argument('--root_path', metavar="PATH",
-                        help="rundirs root path", required=True)
+                        help="alternative rundirs root path")
 
 
 def implementation(logger, args):
-    rr = RundirsRootpath(root_path=args.root_path, logger=logger)
+    rr = RundirsRootpath(logger=logger, args=args)
     rr.check()
 
 
