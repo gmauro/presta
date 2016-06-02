@@ -41,15 +41,15 @@ def implementation(logger, args):
         if not path_exists(ss_file, logger, force=False):
             conf = get_conf(logger, args.config_file)
             ir_conf = conf.get_irods_section()
-            print ir_conf
-
+            
             ir = build_object_store(store='irods',
                                     host=ir_conf['host'],
                                     port=ir_conf['port'],
                                     user=ir_conf['user'],
                                     password=ir_conf['password'],
                                     zone=ir_conf['zone'])
-            ipath = os.path.join('/tempZone/home/iuser/runs', rd_label,
+            runs_c = ir_conf['runs_collection']
+            ipath = os.path.join(runs_c, rd_label,
                                  'samplesheet.csv')
             logger.info('Coping samplesheet from iRODS {}'.format(ipath))
             ss_file_orig = ''.join([ss_file, '.orig'])
