@@ -4,6 +4,7 @@ Utilities used by other modules.
 
 import csv
 import os
+import string
 import sys
 
 from alta import ConfigurationFromYamlFile
@@ -17,22 +18,41 @@ class IEMSampleSheetReader(csv.DictReader):
     def __init__(self, f):
         csv.DictReader.__init__(self, f, delimiter=',')
         self.header = None
-        self.body = None
-        magic = f.readline()
-        if not magic.startswith('[Header]'):
-            raise ValueError('%s is not an IEM SampleSheet' % f.name)
+        self.data = None
+        first_line = f.readline()
+        if not first_line.startswith('[Header]'):
+            raise ValueError('%s is not an IEM samplesheet'.format(f.name))
         header = []
+        header.append(first_line.strip())
         l = f.readline()
         while not l.startswith('[Data]'):
-            header.append(l.strip())  # ms-dos sanitation
+            header.append(l.strip())  # ms-dos
             l = f.readline()
         else:
+            header.append(l.strip())
             self.header = header
-        self.body = csv.DictReader(f.readlines(), delimiter=',')
 
-    def replace_column(self, label='Sample_Name', new_value=''):
-        for r in self.body:
-            r[label] = new_value
+        self.data = csv.DictReader(f.readlines(), delimiter=',')
+
+    def get_body(self, label='Sample_Name', new_value='', replace=True):
+        body = []
+        for i in self.header:
+            body.append(i)
+            body.append('\n')
+        body.append(string.join(self.data.fieldnames, ','))
+        body.append('\n')
+
+        for row in self.data:
+            for f in self.data.fieldnames:
+                if replace and f == label:
+                    body.append(new_value)
+                else:
+                    body.append(row[f])
+                if f != 'Description':
+                    body.append(',')
+            body.append('\n')
+
+        return body
 
 
 def get_conf(logger, config_file):
@@ -50,7 +70,7 @@ def path_exists(path, logger, force=True):
         return False
 
     return True if os.path.exists(path) else file_missing(path, logger,
-                                                         force)
+                                                          force)
 
 
 def paths_setup(logger, cf_from_cli=None):
@@ -66,6 +86,7 @@ def paths_setup(logger, cf_from_cli=None):
         config_file_paths.append(WeightedPath(presta_config_from_home, 1))
     if path_exists(presta_config_from_package, logger, force=False):
         config_file_paths.append(WeightedPath(presta_config_from_package, 2))
+
     logger.debug("config file paths: {}".format(config_file_paths))
 
     return sorted(config_file_paths)[0].path

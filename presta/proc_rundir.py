@@ -1,9 +1,11 @@
 import os.path
+import string
 
 from alta.utils import ensure_dir
 from alta.objectstore import build_object_store
-from presta.utils import path_exists, get_conf
-from presta.app.tasks import rd_completed
+from presta.utils import path_exists, get_conf, IEMSampleSheetReader
+from presta.app.tasks import bcl2fastq, rd_completed, rd_move
+from celery import chain
 
 help_doc = """
 Process a rundir
@@ -47,10 +49,32 @@ def implementation(logger, args):
                                     user=ir_conf['user'],
                                     password=ir_conf['password'],
                                     zone=ir_conf['zone'])
-            ipath = os.path.join('/CRS4HUB/home/sequencing/runs', rd_label,
+            ipath = os.path.join('/tempZone/home/iuser/runs', rd_label,
                                  'samplesheet.csv')
             logger.info('Coping samplesheet from iRODS {}'.format(ipath))
-            obj = ir.get_object(ipath, dest_path=ss_file)
+            ss_file_orig = ''.join([ss_file, '.orig'])
+            obj = ir.get_object(ipath, dest_path=ss_file_orig)
+
+            with open(ss_file_orig, 'r') as f:
+                samplesheet = IEMSampleSheetReader(f)
+
+            with open(ss_file, 'w') as f2:
+                for row in samplesheet.get_body():
+                    f2.write(row)
+
+            logger.debug('Rundir path : {}'.format(rd_path))
+            logger.debug('Output path: {}'.format(ds_path))
+            logger.debug('Samplesheet path: {}'.format(ss_file))
+
+            completed_path = os.path.join(rd_path.replace(
+                'running','completed'), 'raw')
+            running_path = rd_path
+
+            logger.debug("{} {}".format(completed_path, running_path))
+
+            bcl2fastq(rd_path, ds_path, ss_file)
+            # chain(bcl2fastq(rd_path, ds_path, ss_file),
+            #       rd_move(running_path, completed_path))
 
 
 def do_register(registration_list):
