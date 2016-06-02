@@ -51,5 +51,5 @@ def implementation(logger, args):
 
 
 def do_register(registration_list):
-    registration_list.append(('check_rundirs', help_doc, make_parser,
+    registration_list.append(('check', help_doc, make_parser,
                               implementation))
