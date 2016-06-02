@@ -41,7 +41,7 @@ def implementation(logger, args):
         if not path_exists(ss_file, logger, force=False):
             conf = get_conf(logger, args.config_file)
             ir_conf = conf.get_irods_section()
-            
+
             ir = build_object_store(store='irods',
                                     host=ir_conf['host'],
                                     port=ir_conf['port'],
@@ -72,9 +72,9 @@ def implementation(logger, args):
 
             logger.debug("{} {}".format(completed_path, running_path))
 
-            bcl2fastq(rd_path, ds_path, ss_file)
-            # chain(bcl2fastq(rd_path, ds_path, ss_file),
-            #       rd_move(running_path, completed_path))
+            bcl2fastq.si(rd_path, ds_path, ss_file).delay()
+            # chain(bcl2fastq.si(rd_path, ds_path, ss_file).delay(),
+            #       rd_move.si(running_path, completed_path).delay())
 
 
 def do_register(registration_list):
