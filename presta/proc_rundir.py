@@ -4,7 +4,8 @@ import string
 from alta.utils import ensure_dir
 from alta.objectstore import build_object_store
 from presta.utils import path_exists, get_conf, IEMSampleSheetReader
-from presta.app.tasks import bcl2fastq, rd_completed, rd_move
+from presta.app.tasks import bcl2fastq, rd_collect_fastq, rd_completed, \
+     rd_move, fastqc
 from celery import chain
 
 help_doc = """
@@ -73,7 +74,9 @@ def implementation(logger, args):
         logger.debug("{} {}".format(completed_path, running_path))
 
         chain(bcl2fastq.si(rd_path, ds_path, ss_file).delay(),
-              rd_move.si(running_path, completed_path).delay())
+              rd_move.si(running_path, completed_path).delay(),
+              rd_collect_fastq.si(ds_path=ds_path).delay,
+              fastqc.s().delay)
 
 
 def do_register(registration_list):
