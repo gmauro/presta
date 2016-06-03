@@ -67,15 +67,15 @@ def implementation(logger, args):
         logger.debug('Samplesheet path: {}'.format(ss_file))
 
         running_path = rd_path
-        completed_path = os.path.join(rd_path.replace('running','completed'),
+        completed_path = os.path.join(rd_path.replace('running', 'completed'),
                                       'raw')
 
         logger.debug("{} {}".format(completed_path, running_path))
 
-        chain(bcl2fastq.si(rd_path, ds_path, ss_file).delay())
-        #       rd_move.si(running_path, completed_path).delay())
+        chain(bcl2fastq.si(rd_path, ds_path, ss_file).delay(),
+              rd_move.si(running_path, completed_path).delay())
 
 
 def do_register(registration_list):
-    registration_list.append(('proc_rundir', help_doc, make_parser,
+    registration_list.append(('proc', help_doc, make_parser,
                               implementation))

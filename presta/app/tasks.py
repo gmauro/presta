@@ -34,7 +34,11 @@ def bcl2fastq(rd_path, output_path, samplesheet_path):
             '--ignore-missing-bcls',
             '--ignore-missing-filter',
             '--ignore-missing-positions',
-            '--find-adapters-with-sliding-window']
+            '--find-adapters-with-sliding-window',
+            '--loading-threads 4',
+            '--demultiplexing-threads 4',
+            '--processing-threads 4',
+            '--writing-threads 4']
 
     cmd_line = shlex.split(' '.join([command, rd_arg, output_arg,
                                     samplesheet_arg, ' '.join(args)]))

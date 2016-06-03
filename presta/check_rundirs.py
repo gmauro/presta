@@ -30,7 +30,7 @@ class RundirsRootpath(object):
         self.logger.info('Rundir running:')
         for d in running:
             self.logger.info('{}'.format(d))
-        self.logger.info('Rundir completed:')
+        self.logger.info('Rundir done:')
         for d in completed:
             self.logger.info('{}'.format(d))
 
