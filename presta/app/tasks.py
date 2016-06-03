@@ -11,6 +11,16 @@ from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 
 
+@app.task(name='presta.app.tasks.rd_collect_fastq')
+def rd_collect_fastq(ds_path=''):
+    results = []
+    for (localroot, dirnames, filenames) in os.walk(ds_path):
+        for f in filenames:
+            if f[-3:] == '.gz':
+                results.append(os.path.join(localroot, f))
+    return results
+
+
 @app.task(name='presta.app.tasks.rd_completed')
 def rd_completed(rd_path):
     illumina_last_file = 'RTAComplete.txt'
