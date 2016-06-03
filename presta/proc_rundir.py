@@ -73,10 +73,10 @@ def implementation(logger, args):
 
         logger.debug("{} {}".format(completed_path, running_path))
 
-        chain(bcl2fastq.si(rd_path, ds_path, ss_file).delay(),
-              rd_move.si(running_path, completed_path).delay(),
-              rd_collect_fastq.si(ds_path=ds_path).delay,
-              fastqc.s().delay)
+        chain(bcl2fastq.si(rd_path, ds_path, ss_file),
+              rd_move.si(running_path, completed_path),
+              rd_collect_fastq.si(ds_path=ds_path),
+              fastqc.s()).delay()
 
 
 def do_register(registration_list):

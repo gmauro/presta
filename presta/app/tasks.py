@@ -76,8 +76,8 @@ def fastqc(fq_list):
 
 def runJob(cmd):
     try:
-        output = subprocess.check_output(cmd)
-        return output
+        subprocess.check_output(cmd)
+        return True
     except subprocess.CalledProcessError as e:
         logger.debug(e)
         if e.output:
