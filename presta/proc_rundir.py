@@ -62,19 +62,18 @@ def implementation(logger, args):
                 for row in samplesheet.get_body():
                     f2.write(row)
 
-            logger.debug('Rundir path : {}'.format(rd_path))
-            logger.debug('Output path: {}'.format(ds_path))
-            logger.debug('Samplesheet path: {}'.format(ss_file))
+        logger.debug('Rundir path : {}'.format(rd_path))
+        logger.debug('Output path: {}'.format(ds_path))
+        logger.debug('Samplesheet path: {}'.format(ss_file))
 
-            completed_path = os.path.join(rd_path.replace(
-                'running','completed'), 'raw')
-            running_path = rd_path
+        running_path = rd_path
+        completed_path = os.path.join(rd_path.replace('running','completed'),
+                                      'raw')
 
-            logger.debug("{} {}".format(completed_path, running_path))
+        logger.debug("{} {}".format(completed_path, running_path))
 
-            bcl2fastq.si(rd_path, ds_path, ss_file).delay()
-            # chain(bcl2fastq.si(rd_path, ds_path, ss_file).delay(),
-            #       rd_move.si(running_path, completed_path).delay())
+        chain(bcl2fastq.si(rd_path, ds_path, ss_file).delay())
+        #       rd_move.si(running_path, completed_path).delay())
 
 
 def do_register(registration_list):
