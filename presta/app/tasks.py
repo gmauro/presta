@@ -58,6 +58,22 @@ def bcl2fastq(rd_path, output_path, samplesheet_path):
     return True if output else False
 
 
+@app.task(name='presta.app.tasks.fastqc')
+def fastqc(fq_list):
+    command = 'fastqc'
+    output_arg = '--outdir {}'.format('tmp/fqc')
+    args = ['--threads 4',
+            '--format fastq']
+    fq_list_arg = ' '.join(fq_list)
+
+    cmd_line = shlex.split(' '.join([command, output_arg, ' '.join(args),
+                                     fq_list_arg]))
+    logger.info('Executing {}'.format(cmd_line))
+    output = runJob(cmd_line)
+
+    return True if output else False
+
+
 def runJob(cmd):
     try:
         output = subprocess.check_output(cmd)
