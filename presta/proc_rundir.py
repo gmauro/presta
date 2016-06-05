@@ -1,5 +1,5 @@
 import os.path
-import string
+import sys
 
 from alta.utils import ensure_dir
 from alta.objectstore import build_object_store
@@ -18,12 +18,13 @@ def make_parser(parser):
                         help="rundir path", required=True)
     parser.add_argument('--output', type=str, help='output path')
     parser.add_argument('--samplesheet', type=str, help='samplesheet path')
+    parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
 
 
 def implementation(logger, args):
-    if args.run_dir:
-            path_exists(args.run_dir, logger)
+    path_exists(args.run_dir, logger)
     rd_path = args.run_dir
+    conf = get_conf(logger, args.config_file)
 
     if rd_completed(rd_path):
         rd_label = os.path.basename(rd_path)
@@ -34,13 +35,25 @@ def implementation(logger, args):
             ds_path = os.path.join(rd_path.replace('running', 'completed'),
                                    'datasets')
         ensure_dir(ds_path)
+
+        if args.fastqc_outdir:
+            fastqc_outdir = args.fastq_outdir
+        else:
+            io_conf = conf.get_io_section()
+            if 'fastqc_outdir' in io_conf:
+                fastqc_outdir = io_conf['fastqc_outdir']
+            else:
+                logger.error('fastqc_outdir missing')
+                sys.exit()
+        fqc_outdir = os.path.join(fastqc_outdir, rd_label)
+        ensure_dir(fqc_outdir)
+
         if args.samplesheet:
             ss_file = args.samplesheet
         else:
             ss_file = os.path.join(rd_path.replace('running', 'completed'),
                                    'samplesheet.csv')
         if not path_exists(ss_file, logger, force=False):
-            conf = get_conf(logger, args.config_file)
             ir_conf = conf.get_irods_section()
 
             ir = build_object_store(store='irods',
@@ -76,7 +89,7 @@ def implementation(logger, args):
         chain(bcl2fastq.si(rd_path, ds_path, ss_file),
               rd_move.si(running_path, completed_path),
               rd_collect_fastq.si(ds_path=ds_path),
-              fastqc.s()).delay()
+              fastqc.s(fqc_outdir)).delay()
 
 
 def do_register(registration_list):

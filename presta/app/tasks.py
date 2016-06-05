@@ -60,12 +60,12 @@ def bcl2fastq(rd_path, output_path, samplesheet_path):
 
 
 @app.task(name='presta.app.tasks.fastqc')
-def fastqc(fq_list):
+def fastqc(fq_list, fqc_outdir):
     command = 'fastqc'
-    output_arg = '--outdir {}'.format('tmp/fqc')
+    output_arg = '--outdir {}'.format(fqc_outdir)
     args = ['--threads 4',
             '--format fastq']
-    fq_list_arg = ' '.join(fq_list[0])
+    fq_list_arg = ' '.join(fq_list)
 
     cmd_line = shlex.split(' '.join([command, output_arg, ' '.join(args),
                                      fq_list_arg]))
@@ -80,11 +80,11 @@ def runJob(cmd):
         subprocess.check_output(cmd)
         return True
     except subprocess.CalledProcessError as e:
-        logger.debug(e)
+        logger.info(e)
         if e.output:
-            logger.debug("command output: %s", e.output)
+            logger.info("command output: %s", e.output)
         else:
-            logger.debug("no command output available")
+            logger.info("no command output available")
         return False
 
 
