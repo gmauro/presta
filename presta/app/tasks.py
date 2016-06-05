@@ -65,7 +65,7 @@ def fastqc(fq_list):
     output_arg = '--outdir {}'.format('tmp/fqc')
     args = ['--threads 4',
             '--format fastq']
-    fq_list_arg = ' '.join(fq_list)
+    fq_list_arg = ' '.join(fq_list[0])
 
     cmd_line = shlex.split(' '.join([command, output_arg, ' '.join(args),
                                      fq_list_arg]))
