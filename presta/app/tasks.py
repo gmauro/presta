@@ -12,9 +12,10 @@ logger = get_task_logger(__name__)
 
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
-def rd_collect_fastq(ds_path=''):
+def rd_collect_fastq(**kwargs):
+    path = kwargs.get('ds_path')
     results = []
-    for (localroot, dirnames, filenames) in os.walk(ds_path):
+    for (localroot, dirnames, filenames) in os.walk(path):
         for f in filenames:
             if f[-3:] == '.gz':
                 results.append(os.path.join(localroot, f))
