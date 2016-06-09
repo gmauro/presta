@@ -23,8 +23,8 @@ class PreprocessingWorkflow(object):
             self.ds['path'] = args.output
 
         io_conf = self.conf.get_io_section()
-        self.fqc = {'path': io_conf.get('fastqc_outdir',
-                                        os.path.join(self.ds['path'], 'fastqc'))
+        self.fqc = {'path': os.path.join(self.ds['path'], 'fastqc'),
+                    'export_path': io_conf.get('fastqc_outdir')
                     }
         if args.fastqc_outdir:
             self.fqc['path'] = args.fastq_outdir
