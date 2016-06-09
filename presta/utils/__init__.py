@@ -22,8 +22,7 @@ class IEMSampleSheetReader(csv.DictReader):
         first_line = f.readline()
         if not first_line.startswith('[Header]'):
             raise ValueError('%s is not an IEM samplesheet'.format(f.name))
-        header = []
-        header.append(first_line.strip())
+        header = [first_line.strip()]
         l = f.readline()
         while not l.startswith('[Data]'):
             header.append(l.strip())  # ms-dos

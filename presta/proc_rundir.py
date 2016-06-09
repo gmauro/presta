@@ -8,6 +8,80 @@ from presta.app.tasks import bcl2fastq, rd_collect_fastq, rd_completed, \
      rd_move, fastqc
 from celery import chain
 
+
+class PreprocessingWorkflow(object):
+    def __init__(self, args=None, logger=None):
+        self.logger = logger
+        self.rd = {'rpath': args.run_dir,
+                   'cpath': args.run_dir.replace('running', 'completed'),
+                   'apath': os.path.join(self.rd['cpath'], 'raw'),
+                   'label': os.path.basename(args.run_dir)
+                   }
+        self.conf = get_conf(logger, args.config_file)
+        self.ds = {'path': os.path.join(self.rd['cpath'], 'datasets')}
+        if args.output:
+            self.ds['path'] = args.output
+
+        io_conf = self.conf.get_io_section()
+        self.fqc = {'path': io_conf.get('fastqc_outdir',
+                                        os.path.join(self.ds['path'], 'fastqc'))
+                    }
+        if args.fastqc_outdir:
+            self.fqc['path'] = args.fastq_outdir
+        self.fqc['path'] = os.path.join(self.fqc['path'], self.rd['label'])
+
+        self.samplesheet = {'path': os.path.join(self.rd['rpath']),
+                            'filename': 'SampleSheet.csv'}
+        self.samplesheet['file_path'] = os.path.join(self.samplesheet['path'],
+                                                     self.samplesheet['filename'])
+        if not path_exists(self.samplesheet['file_path'], self.logger,
+                           force=False):
+            self.copy_samplesheet_from_irods()
+
+    def copy_samplesheet_from_irods(self):
+        ir_conf = self.conf.get_irods_section()
+        ir = build_object_store(store='irods',
+                                host=ir_conf['host'],
+                                port=ir_conf['port'],
+                                user=ir_conf['user'],
+                                password=ir_conf['password'],
+                                zone=ir_conf['zone'])
+
+        ipath = os.path.join(ir_conf['runs_collection'], self.rd['label'],
+                             self.samplesheet['filename'])
+        self.logger.info('Coping samplesheet from iRODS {}'.format(
+            self.samplesheet['file_path']))
+        ir.get_object(ipath, dest_path=self.samplesheet['file_path'])
+
+    def replace_values_into_samplesheet(self):
+        with open(self.samplesheet['file_path'], 'r') as f:
+            samplesheet = IEMSampleSheetReader(f)
+
+        with open(self.samplesheet['file_path'], 'w') as f:
+            for row in samplesheet.header:
+                f.write(row)
+            for row in samplesheet.get_body():
+                f.write(row)
+
+    def run(self):
+        path_exists(self.rd['path'], self.logger)
+        if not rd_completed(self.rd['path']):
+            self.logger.error("{} is not ready to be preprocessed".format(
+                self.rd['label']))
+            sys.exit()
+        self.logger.info('Processing {}'.format(self.rd['label']))
+        ensure_dir(self.ds['path'])
+        ensure_dir(self.fqc['path'])
+
+        self.replace_values_into_samplesheet()
+
+        # chain(bcl2fastq.si(self.rd['rpath'], self.ds['path'],
+        #                    self.samplesheet['file_path']),
+        #       rd_move.si(self.rd['rpath'], self.rd['cpath']),
+        #       rd_collect_fastq.si(ds_path=self.ds['path']),
+        #       fastqc.s(self.fqc['path'])).delay()
+
+
 help_doc = """
 Process a rundir
 """
@@ -16,80 +90,14 @@ Process a rundir
 def make_parser(parser):
     parser.add_argument('--run_dir', metavar="PATH",
                         help="rundir path", required=True)
-    parser.add_argument('--output', type=str, help='output path')
+    parser.add_argument('--output', type=str, help='output path', default='')
     parser.add_argument('--samplesheet', type=str, help='samplesheet path')
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
 
 
 def implementation(logger, args):
-    path_exists(args.run_dir, logger)
-    rd_path = args.run_dir
-    conf = get_conf(logger, args.config_file)
-
-    if rd_completed(rd_path):
-        rd_label = os.path.basename(rd_path)
-        logger.info('Processing {} '.format(rd_label))
-        if args.output:
-            ds_path = args.output
-        else:
-            ds_path = os.path.join(rd_path.replace('running', 'completed'),
-                                   'datasets')
-        ensure_dir(ds_path)
-
-        if args.fastqc_outdir:
-            fastqc_outdir = args.fastq_outdir
-        else:
-            io_conf = conf.get_io_section()
-            if 'fastqc_outdir' in io_conf:
-                fastqc_outdir = io_conf['fastqc_outdir']
-            else:
-                logger.error('fastqc_outdir missing')
-                sys.exit()
-        fqc_outdir = os.path.join(fastqc_outdir, rd_label)
-        ensure_dir(fqc_outdir)
-
-        if args.samplesheet:
-            ss_file = args.samplesheet
-        else:
-            ss_file = os.path.join(rd_path.replace('running', 'completed'),
-                                   'samplesheet.csv')
-        if not path_exists(ss_file, logger, force=False):
-            ir_conf = conf.get_irods_section()
-
-            ir = build_object_store(store='irods',
-                                    host=ir_conf['host'],
-                                    port=ir_conf['port'],
-                                    user=ir_conf['user'],
-                                    password=ir_conf['password'],
-                                    zone=ir_conf['zone'])
-            runs_c = ir_conf['runs_collection']
-            ipath = os.path.join(runs_c, rd_label,
-                                 'samplesheet.csv')
-            logger.info('Coping samplesheet from iRODS {}'.format(ipath))
-            ss_file_orig = ''.join([ss_file, '.orig'])
-            obj = ir.get_object(ipath, dest_path=ss_file_orig)
-
-            with open(ss_file_orig, 'r') as f:
-                samplesheet = IEMSampleSheetReader(f)
-
-            with open(ss_file, 'w') as f2:
-                for row in samplesheet.get_body():
-                    f2.write(row)
-
-        logger.debug('Rundir path : {}'.format(rd_path))
-        logger.debug('Output path: {}'.format(ds_path))
-        logger.debug('Samplesheet path: {}'.format(ss_file))
-
-        running_path = rd_path
-        completed_path = os.path.join(rd_path.replace('running', 'completed'),
-                                      'raw')
-
-        logger.debug("{} {}".format(completed_path, running_path))
-
-        chain(bcl2fastq.si(rd_path, ds_path, ss_file),
-              rd_move.si(running_path, completed_path),
-              rd_collect_fastq.si(ds_path=ds_path),
-              fastqc.s(fqc_outdir)).delay()
+    workflow = PreprocessingWorkflow(args=args, logger=logger)
+    workflow.run()
 
 
 def do_register(registration_list):
