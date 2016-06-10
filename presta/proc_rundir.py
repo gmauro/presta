@@ -12,31 +12,39 @@ from celery import chain
 class PreprocessingWorkflow(object):
     def __init__(self, args=None, logger=None):
         self.logger = logger
-        self.rd = {'rpath': args.run_dir,
-                   'cpath': args.run_dir.replace('running', 'completed'),
-                   'apath': os.path.join(self.rd['cpath'], 'raw'),
+        rpath = args.run_dir
+        cpath = args.run_dir.replace('running', 'completed')
+        apath = os.path.join(cpath, 'raw')
+        self.rd = {'rpath': rpath,
+                   'cpath': cpath,
+                   'apath': apath,
                    'label': os.path.basename(args.run_dir)
                    }
         self.conf = get_conf(logger, args.config_file)
-        self.ds = {'path': os.path.join(self.rd['cpath'], 'datasets')}
+
+        dspath = os.path.join(cpath, 'datasets')
+        self.ds = {'path': dspath}
+
+        fqc_path_prefix = os.path.join(dspath, 'fastqc')
+        self.fqc = dict(path=fqc_path_prefix)
+
+        ssheet = {'basepath': os.path.join(rpath),
+                  'filename': 'SampleSheet.csv'}
+        ssheet['file_path'] = os.path.join(ssheet['basepath'],
+                                           ssheet['filename'])
+        self.samplesheet = ssheet
+
+        self._add_config_from_cli()
+
+    def _add_config_from_cli(self, args):
         if args.output:
             self.ds['path'] = args.output
 
         io_conf = self.conf.get_io_section()
-        self.fqc = {'path': os.path.join(self.ds['path'], 'fastqc'),
-                    'export_path': io_conf.get('fastqc_outdir')
-                    }
         if args.fastqc_outdir:
             self.fqc['path'] = args.fastq_outdir
         self.fqc['path'] = os.path.join(self.fqc['path'], self.rd['label'])
-
-        self.samplesheet = {'path': os.path.join(self.rd['rpath']),
-                            'filename': 'SampleSheet.csv'}
-        self.samplesheet['file_path'] = os.path.join(self.samplesheet['path'],
-                                                     self.samplesheet['filename'])
-        if not path_exists(self.samplesheet['file_path'], self.logger,
-                           force=False):
-            self.copy_samplesheet_from_irods()
+        self.fqc['export_path'] = io_conf.get('fastqc_outdir')
 
     def copy_samplesheet_from_irods(self):
         ir_conf = self.conf.get_irods_section()
@@ -65,11 +73,18 @@ class PreprocessingWorkflow(object):
 
     def run(self):
         path_exists(self.rd['path'], self.logger)
+
         if not rd_completed(self.rd['path']):
             self.logger.error("{} is not ready to be preprocessed".format(
                 self.rd['label']))
             sys.exit()
+
+        if not path_exists(self.samplesheet['file_path'], self.logger,
+                           force=False):
+            self.copy_samplesheet_from_irods()
+
         self.logger.info('Processing {}'.format(self.rd['label']))
+
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
 
