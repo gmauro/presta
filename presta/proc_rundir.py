@@ -66,8 +66,6 @@ class PreprocessingWorkflow(object):
             samplesheet = IEMSampleSheetReader(f)
 
         with open(self.samplesheet['file_path'], 'w') as f:
-            for row in samplesheet.header:
-                f.write(row)
             for row in samplesheet.get_body():
                 f.write(row)
 
