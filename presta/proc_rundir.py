@@ -88,11 +88,11 @@ class PreprocessingWorkflow(object):
 
         self.replace_values_into_samplesheet()
 
-        # chain(bcl2fastq.si(self.rd['rpath'], self.ds['path'],
-        #                    self.samplesheet['file_path']),
-        #       rd_move.si(self.rd['rpath'], self.rd['cpath']),
-        #       rd_collect_fastq.si(ds_path=self.ds['path']),
-        #       fastqc.s(self.fqc['path'])).delay()
+        chain(bcl2fastq.si(self.rd['rpath'], self.ds['path'],
+                           self.samplesheet['file_path']),
+              rd_move.si(self.rd['rpath'], self.rd['cpath']),
+              rd_collect_fastq.si(ds_path=self.ds['path']),
+              fastqc.s(self.fqc['path'])).delay()
 
 
 help_doc = """
