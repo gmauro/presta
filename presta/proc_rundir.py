@@ -72,9 +72,9 @@ class PreprocessingWorkflow(object):
                 f.write(row)
 
     def run(self):
-        path_exists(self.rd['path'], self.logger)
+        path_exists(self.rd['rpath'], self.logger)
 
-        if not rd_completed(self.rd['path']):
+        if not rd_completed(self.rd['rpath']):
             self.logger.error("{} is not ready to be preprocessed".format(
                 self.rd['label']))
             sys.exit()
