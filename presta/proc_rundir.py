@@ -34,7 +34,7 @@ class PreprocessingWorkflow(object):
                                            ssheet['filename'])
         self.samplesheet = ssheet
 
-        self._add_config_from_cli()
+        self._add_config_from_cli(args)
 
     def _add_config_from_cli(self, args):
         if args.output:
