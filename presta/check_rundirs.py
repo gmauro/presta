@@ -26,8 +26,9 @@ class RundirsRootpath(object):
         running = []
         completed = []
         for d in dirnames:
-            if seq_completed(os.path.join(self.root_path, d)) and \
-                check_ownership(user=self.user, group=self.group, dir=d):
+            d_path = os.path.join(self.root_path, d)
+            if seq_completed(d_path) and \
+                check_ownership(user=self.user, group=self.group, dir=d_path):
                 completed.append(d)
             else:
                 running.append(d)
