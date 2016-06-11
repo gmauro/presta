@@ -4,7 +4,7 @@ import sys
 from alta.utils import ensure_dir
 from alta.objectstore import build_object_store
 from presta.utils import path_exists, get_conf, IEMSampleSheetReader
-from presta.app.tasks import bcl2fastq, rd_collect_fastq, rd_completed, \
+from presta.app.tasks import bcl2fastq, rd_collect_fastq, seq_completed, \
      rd_move, fastqc
 from celery import chain
 
@@ -57,8 +57,8 @@ class PreprocessingWorkflow(object):
 
         ipath = os.path.join(ir_conf['runs_collection'], self.rd['label'],
                              self.samplesheet['filename'])
-        self.logger.info('Coping samplesheet from iRODS {}'.format(
-            self.samplesheet['file_path']))
+        self.logger.info('Coping samplesheet from iRODS {} to FS {}'.format(
+            ipath, self.samplesheet['file_path']))
         ir.get_object(ipath, dest_path=self.samplesheet['file_path'])
 
     def replace_values_into_samplesheet(self):
@@ -72,7 +72,7 @@ class PreprocessingWorkflow(object):
     def run(self):
         path_exists(self.rd['rpath'], self.logger)
 
-        if not rd_completed(self.rd['rpath']):
+        if not seq_completed(self.rd['rpath']):
             self.logger.error("{} is not ready to be preprocessed".format(
                 self.rd['label']))
             sys.exit()
@@ -82,15 +82,19 @@ class PreprocessingWorkflow(object):
             self.copy_samplesheet_from_irods()
 
         self.logger.info('Processing {}'.format(self.rd['label']))
+        self.logger.info('running path {}'.format(self.rd['rpath']))
+        self.logger.info('completed path {}'.format(self.rd['cpath']))
+        self.logger.info('archive path {}'.format(self.rd['apath']))
 
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
 
         self.replace_values_into_samplesheet()
 
-        chain(bcl2fastq.si(self.rd['rpath'], self.ds['path'],
+        # full pre-processing sequencing rundir workflow
+        chain(rd_move.si(self.rd['rpath'], self.rd['apath']),
+              bcl2fastq.si(self.rd['apath'], self.ds['path'],
                            self.samplesheet['file_path']),
-              rd_move.si(self.rd['rpath'], self.rd['cpath']),
               rd_collect_fastq.si(ds_path=self.ds['path']),
               fastqc.s(self.fqc['path'])).delay()
 
@@ -101,7 +105,7 @@ Process a rundir
 
 
 def make_parser(parser):
-    parser.add_argument('--run_dir', metavar="PATH",
+    parser.add_argument('--rd_path', metavar="PATH",
                         help="rundir path", required=True)
     parser.add_argument('--output', type=str, help='output path', default='')
     parser.add_argument('--samplesheet', type=str, help='samplesheet path')

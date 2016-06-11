@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 
 from . import app
+from grp import getgrgid
+from pwd import getpwuid
 import os
 import shlex
 import shutil
@@ -22,11 +24,26 @@ def rd_collect_fastq(**kwargs):
     return results
 
 
-@app.task(name='presta.app.tasks.rd_completed')
-def rd_completed(rd_path):
+@app.task(name='presta.app.tasks.seq_completed')
+def seq_completed(rd_path):
     illumina_last_file = 'RTAComplete.txt'
     localroot, dirnames, filenames = os.walk(rd_path).next()
     return True if illumina_last_file in filenames else False
+
+
+@app.task(name='presta.app.task.check_ownership')
+def check_ownership(**kwargs):
+    user = kwargs.get('user')
+    group = kwargs.get('group')
+    d = kwargs.get('dir')
+
+    def find_owner(directory):
+        return getpwuid(os.stat(directory).st_uid).pw_name
+
+    def find_group(directory):
+        return getgrgid(os.stat(directory).st_gid).gr_name
+
+    return True if user == find_owner(d) and group == find_group(d) else False
 
 
 @app.task(name='presta.app.tasks.rd_move', ignore_result=True)

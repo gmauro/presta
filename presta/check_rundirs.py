@@ -1,20 +1,24 @@
 import os
 
 from presta.utils import path_exists, get_conf
-from presta.app.tasks import rd_completed
+from presta.app.tasks import seq_completed, check_ownership
 
 
 class RundirsRootpath(object):
     def __init__(self, args=None, logger=None):
         self.logger = logger
-        self.root_path = ''
+
+        conf = get_conf(logger, args.config_file)
+
         if args.root_path:
             self.root_path = args.root_path
         else:
-            conf = get_conf(logger, args.config_file)
             io_conf = conf.get_io_section()
-            if 'rundirs_root_path' in io_conf:
-                self.root_path = io_conf['rundirs_root_path']
+            self.root_path = io_conf.get('rundirs_root_path')
+
+        do_conf = conf.get_section('data_ownership')
+        self.user = do_conf.get('user')
+        self.group = do_conf.get('group')
 
     def check(self):
         path_exists(self.root_path, self.logger)
@@ -22,15 +26,16 @@ class RundirsRootpath(object):
         running = []
         completed = []
         for d in dirnames:
-            if rd_completed(os.path.join(self.root_path, d)):
+            if seq_completed(os.path.join(self.root_path, d)) and \
+                check_ownership(user=self.user, group=self.group, dir=d):
                 completed.append(d)
             else:
                 running.append(d)
         self.logger.info('Checking rundirs in: {}'.format(self.root_path))
-        self.logger.info('Rundir running:')
+        self.logger.info('Rundirs running:')
         for d in running:
             self.logger.info('{}'.format(d))
-        self.logger.info('Rundir done:')
+        self.logger.info('Rundirs done:')
         for d in completed:
             self.logger.info('{}'.format(d))
 
