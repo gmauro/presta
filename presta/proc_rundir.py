@@ -4,8 +4,8 @@ import sys
 from alta.utils import ensure_dir
 from alta.objectstore import build_object_store
 from presta.utils import path_exists, get_conf, IEMSampleSheetReader
-from presta.app.tasks import bcl2fastq, rd_collect_fastq, seq_completed, \
-     move, fastqc
+from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, fastqc, \
+     rd_ready_to_be_preprocessed
 from celery import chain
 
 
@@ -20,7 +20,8 @@ class PreprocessingWorkflow(object):
                    'apath': apath,
                    'label': os.path.basename(args.run_dir)
                    }
-        self.conf = get_conf(logger, args.config_file)
+        conf = get_conf(logger, args.config_file)
+        self.conf = conf
 
         dspath = os.path.join(cpath, 'datasets')
         self.ds = {'path': dspath}
@@ -33,6 +34,10 @@ class PreprocessingWorkflow(object):
         ssheet['file_path'] = os.path.join(ssheet['basepath'],
                                            ssheet['filename'])
         self.samplesheet = ssheet
+
+        do_conf = conf.get_section('data_ownership')
+        self.user = do_conf.get('user')
+        self.group = do_conf.get('group')
 
         self._add_config_from_cli(args)
 
@@ -71,8 +76,11 @@ class PreprocessingWorkflow(object):
 
     def run(self):
         path_exists(self.rd['rpath'], self.logger)
-
-        if not seq_completed(self.rd['rpath']):
+        rd_status_checks = rd_ready_to_be_preprocessed(user=self.user,
+                                                       group=self.group,
+                                                       path=self.rd['path'])
+        check = rd_status_checks[0] and rd_status_checks[1]
+        if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
                 self.rd['label']))
             sys.exit()
