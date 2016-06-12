@@ -1,7 +1,7 @@
 import os
 
 from presta.utils import path_exists, get_conf
-from presta.app.tasks import seq_completed, check_ownership
+from presta.app.tasks import rd_ready_to_be_preprocessed
 
 
 class RundirsRootpath(object):
@@ -28,8 +28,10 @@ class RundirsRootpath(object):
         ownership = []
         for d in dirnames:
             d_path = os.path.join(self.root_path, d)
-            if seq_completed(d_path):
-                if check_ownership(user=self.user, group=self.group, dir=d_path):
+            checks = rd_ready_to_be_preprocessed(user=self.user,
+                                                 group=self.group, path=d_path)
+            if checks[0]:
+                if checks[1]:
                     completed.append(d)
                 else:
                     ownership.append(d)
@@ -42,7 +44,7 @@ class RundirsRootpath(object):
         self.logger.info("Rundirs waiting for ownership's modification:")
         for d in ownership:
                 self.logger.info('{}'.format(d))
-        self.logger.info('Rundirs ready to be preocessed:')
+        self.logger.info('Rundirs ready to be pre-processed:')
         for d in completed:
             self.logger.info('{}'.format(d))
 

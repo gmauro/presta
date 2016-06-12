@@ -1,8 +1,10 @@
 from __future__ import absolute_import
 
 from . import app
+from celery import chord
 from grp import getgrgid
 from pwd import getpwuid
+import errno
 import os
 import shlex
 import shutil
@@ -22,6 +24,21 @@ def rd_collect_fastq(**kwargs):
             if f[-3:] == '.gz':
                 results.append(os.path.join(localroot, f))
     return results
+
+
+@app.task(name='presta.app.tasks.rd_ready_to_be_preprocessed')
+def rd_ready_to_be_preprocessed(**kwargs):
+    path = kwargs.get('path')
+    user = kwargs.get('user')
+    group = kwargs.get('group')
+
+    task1 = seq_completed.si(path)
+    task2 = check_ownership.si(user=user, group=group, dir=path)
+
+    pipeline = chord(task1, task2)()
+    while pipeline.waiting():
+        pass
+    return pipeline.join()
 
 
 @app.task(name='presta.app.tasks.seq_completed')
@@ -44,6 +61,17 @@ def check_ownership(**kwargs):
         return getgrgid(os.stat(directory).st_gid).gr_name
 
     return True if user == find_owner(d) and group == find_group(d) else False
+
+
+@app.task(name='presta.app.tasks.copy', ignore_result=True)
+def copy(src, dest):
+    try:
+        shutil.copytree(src, dest)
+    except OSError as e:
+        if e.errno == errno.ENOTDIR:
+            shutil.copy(src, dest)
+        else:
+            logger.error('Source not copied. Error: {}'.format(e))
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)
