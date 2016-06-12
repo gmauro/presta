@@ -46,9 +46,12 @@ def check_ownership(**kwargs):
     return True if user == find_owner(d) and group == find_group(d) else False
 
 
-@app.task(name='presta.app.tasks.rd_move', ignore_result=True)
-def rd_move(src, dest):
-    return shutil.move(src, dest)
+@app.task(name='presta.app.tasks.move', ignore_result=True)
+def move(src, dest):
+    try:
+        shutil.move(src, dest)
+    except shutil.Error as e:
+        logger.error('Source not moved. Error: {}'.format(e))
 
 
 @app.task(name='presta.app.tasks.bcl2fastq')
