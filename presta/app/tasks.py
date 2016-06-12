@@ -1,8 +1,10 @@
 from __future__ import absolute_import
 
 from . import app
+from alta.objectstore import build_object_store
 from celery import group
 from grp import getgrgid
+from presta.utils import IEMSampleSheetReader
 from pwd import getpwuid
 import errno
 import os
@@ -72,6 +74,40 @@ def copy(src, dest):
             shutil.copy(src, dest)
         else:
             logger.error('Source not copied. Error: {}'.format(e))
+
+
+@app.task(name='presta.app.tasks.copy_samplesheet_from_irods',
+          ignore_result=True)
+def copy_samplesheet_from_irods(**kwargs):
+    ir_conf = kwargs.get('conf')
+    samplesheet_file_path = kwargs.get('ssheet_path')
+    samplesheet_filename = os.path.basename(samplesheet_file_path)
+    rundir_label = kwargs.get('rd_label')
+
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'],
+                            zone=ir_conf['zone'])
+    ipath = os.path.join(ir_conf['runs_collection'],
+                         rundir_label,
+                         samplesheet_filename)
+    logger.info('Coping samplesheet from iRODS {} to FS {}'.format(
+        ipath, samplesheet_file_path))
+    ir.get_object(ipath, dest_path=samplesheet_file_path)
+
+
+@app.task(name='presta.app.tasks.replace_values_into_samplesheet',
+          ignore_result=True)
+def replace_values_into_samplesheet(file_path):
+    with open(file_path, 'r') as f:
+        samplesheet = IEMSampleSheetReader(f)
+
+    with open(file_path, 'w') as f:
+        for row in samplesheet.get_body(replace=True):
+            f.write(row)
+    pass
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)
