@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from . import app
-from celery import chord
+from celery import group
 from grp import getgrgid
 from pwd import getpwuid
 import errno
@@ -30,12 +30,12 @@ def rd_collect_fastq(**kwargs):
 def rd_ready_to_be_preprocessed(**kwargs):
     path = kwargs.get('path')
     user = kwargs.get('user')
-    group = kwargs.get('group')
+    grp = kwargs.get('group')
 
     task1 = seq_completed.si(path)
-    task2 = check_ownership.si(user=user, group=group, dir=path)
+    task2 = check_ownership.si(user=user, group=grp, dir=path)
 
-    pipeline = chord(task1, task2)()
+    pipeline = group(task1, task2)()
     while pipeline.waiting():
         pass
     return pipeline.join()
