@@ -25,18 +25,24 @@ class RundirsRootpath(object):
         localroot, dirnames, filenames = os.walk(self.root_path).next()
         running = []
         completed = []
+        ownership = []
         for d in dirnames:
             d_path = os.path.join(self.root_path, d)
-            if seq_completed(d_path) and \
-                check_ownership(user=self.user, group=self.group, dir=d_path):
-                completed.append(d)
+            if seq_completed(d_path):
+                if check_ownership(user=self.user, group=self.group, dir=d_path):
+                    completed.append(d)
+                else:
+                    ownership.append(d)
             else:
                 running.append(d)
         self.logger.info('Checking rundirs in: {}'.format(self.root_path))
         self.logger.info('Rundirs running:')
         for d in running:
             self.logger.info('{}'.format(d))
-        self.logger.info('Rundirs done:')
+        self.logger.info("Rundirs waiting for ownership's modification:")
+        for d in ownership:
+                self.logger.info('{}'.format(d))
+        self.logger.info('Rundirs ready to be preocessed:')
         for d in completed:
             self.logger.info('{}'.format(d))
 
