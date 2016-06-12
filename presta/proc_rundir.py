@@ -5,7 +5,7 @@ from alta.utils import ensure_dir
 from alta.objectstore import build_object_store
 from presta.utils import path_exists, get_conf, IEMSampleSheetReader
 from presta.app.tasks import bcl2fastq, rd_collect_fastq, seq_completed, \
-     rd_move, fastqc
+     move, fastqc
 from celery import chain
 
 
@@ -91,12 +91,12 @@ class PreprocessingWorkflow(object):
 
         self.replace_values_into_samplesheet()
 
-        # full pre-processing sequencing rundir workflow
-        chain(rd_move.si(self.rd['rpath'], self.rd['apath']),
-              bcl2fastq.si(self.rd['apath'], self.ds['path'],
-                           self.samplesheet['file_path']),
-              rd_collect_fastq.si(ds_path=self.ds['path']),
-              fastqc.s(self.fqc['path'])).delay()
+        # full pre-processing sequencing rundir pipeline
+        pipeline = chain(move.si(self.rd['rpath'], self.rd['apath']),
+                         bcl2fastq.si(self.rd['apath'], self.ds['path'],
+                                      self.samplesheet['file_path']),
+                         rd_collect_fastq.si(ds_path=self.ds['path']),
+                         fastqc.s(self.fqc['path'])).delay()
 
 
 help_doc = """
