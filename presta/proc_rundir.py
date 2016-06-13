@@ -38,6 +38,8 @@ class PreprocessingWorkflow(object):
         self.user = do_conf.get('user')
         self.group = do_conf.get('group')
 
+        self.no_lane_splitting = args.no_lane_splitting
+
         self._add_config_from_cli(args)
 
     def _add_config_from_cli(self, args):
@@ -84,8 +86,10 @@ class PreprocessingWorkflow(object):
         pipeline = chain(
             ssht_task,
             move.si(self.rd['rpath'], self.rd['apath']),
-            bcl2fastq.si(self.rd['apath'], self.ds['path'],
-                         self.samplesheet['file_path']),
+            bcl2fastq.si(rd_path=self.rd['apath'],
+                         ds_path=self.ds['path'],
+                         ssht_path=self.samplesheet['file_path'],
+                         no_lane_splitting=self.no_lane_splitting),
             qc_task).delay()
 
 
@@ -100,6 +104,8 @@ def make_parser(parser):
     parser.add_argument('--output', type=str, help='output path', default='')
     parser.add_argument('--samplesheet', type=str, help='samplesheet path')
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
+    parser.add_argument('--no_lane_splitting', type='store_true',
+                        help='Do not split fastq by lane.')
 
 
 def implementation(logger, args):

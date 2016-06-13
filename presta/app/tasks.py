@@ -132,13 +132,17 @@ def move(src, dest):
 
 
 @app.task(name='presta.app.tasks.bcl2fastq')
-def bcl2fastq(rd_path, output_path, samplesheet_path):
+def bcl2fastq(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    ds_path = kwargs.get('ds_path')
+    ssht_path = kwargs.get('ssht_path')
+    no_lane_splitting = kwargs.get('no_lane_splitting', False)
+
     command = 'bcl2fastq'
     rd_arg = '-R {}'.format(rd_path)
-    output_arg = '-o {}'.format(output_path)
-    samplesheet_arg = '--sample-sheet {}'.format(samplesheet_path)
-    args = ['--no-lane-splitting',
-            '--barcode-mismatches 1',
+    output_arg = '-o {}'.format(ds_path)
+    samplesheet_arg = '--sample-sheet {}'.format(ssht_path)
+    args = ['--barcode-mismatches 1',
             '--ignore-missing-bcls',
             '--ignore-missing-filter',
             '--ignore-missing-positions',
@@ -147,6 +151,8 @@ def bcl2fastq(rd_path, output_path, samplesheet_path):
             '--demultiplexing-threads 4',
             '--processing-threads 4',
             '--writing-threads 4']
+    if no_lane_splitting:
+        args.append('--no-lane-splitting')
 
     cmd_line = shlex.split(' '.join([command, rd_arg, output_arg,
                                     samplesheet_arg, ' '.join(args)]))
