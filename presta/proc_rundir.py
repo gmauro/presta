@@ -104,7 +104,7 @@ def make_parser(parser):
     parser.add_argument('--output', type=str, help='output path', default='')
     parser.add_argument('--samplesheet', type=str, help='samplesheet path')
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
-    parser.add_argument('--no_lane_splitting', type='store_true',
+    parser.add_argument('--no_lane_splitting', action='store_true',
                         help='Do not split fastq by lane.')
 
 
