@@ -80,10 +80,10 @@ def copy(src, dest):
 @app.task(name='presta.app.tasks.copy_qc_dirs', ignore_result=True)
 def copy_qc_dirs(src, dest):
     dirs = ['Stats', 'Reports', 'fastqc']
-    ensure_dir(src)
-    task0 = copy.s(os.path.join(src, dirs[0]), dest)
-    task1 = copy.s(os.path.join(src, dirs[1]), dest)
-    task2 = copy.s(os.path.join(src, dirs[2]), dest)
+    ensure_dir(dest)
+    task0 = copy.s(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
+    task1 = copy.s(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
+    task2 = copy.s(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
 
     job = group(task0, task1, task2).delay()
 

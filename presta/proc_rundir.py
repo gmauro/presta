@@ -78,8 +78,7 @@ class PreprocessingWorkflow(object):
 
         qc_task = chain(rd_collect_fastq.si(ds_path=self.ds['path']),
                         fastqc.s(self.fqc['path']),
-                        copy_qc_dirs.si(self.ds['path'], os.path.join(
-                            self.fqc['export_path'], self.rd['label'])))
+                        copy_qc_dirs.si(self.ds['path'], self.fqc['export_path']))
 
         # full pre-processing sequencing rundir pipeline
         pipeline = chain(
