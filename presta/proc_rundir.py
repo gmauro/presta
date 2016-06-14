@@ -3,8 +3,9 @@ import sys
 
 from alta.utils import ensure_dir
 from presta.utils import path_exists, get_conf
-from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, fastqc, copy_qc_dirs, \
-     rd_ready_to_be_preprocessed, copy_samplesheet_from_irods, replace_values_into_samplesheet
+from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, fastqc, \
+     rd_ready_to_be_preprocessed, copy_samplesheet_from_irods, copy_qc_dirs, \
+     replace_values_into_samplesheet
 from celery import chain
 
 
@@ -25,8 +26,13 @@ class PreprocessingWorkflow(object):
         dspath = os.path.join(cpath, 'datasets')
         self.ds = {'path': dspath}
 
-        fqc_path_prefix = os.path.join(dspath, 'fastqc')
-        self.fqc = dict(path=fqc_path_prefix)
+        fqc_basepath = os.path.join(dspath, 'fastqc')
+        self.fqc = dict(path=fqc_basepath)
+
+        io_conf = conf.get_io_section()
+        export_path = os.path.join(io_conf.get('qc_export_basepath'),
+                                   self.rd['label'])
+        self.qc = {'export_path':  export_path}
 
         ssheet = {'basepath': os.path.join(rpath),
                   'filename': 'SampleSheet.csv'}
@@ -46,11 +52,9 @@ class PreprocessingWorkflow(object):
         if args.output:
             self.ds['path'] = args.output
 
-        io_conf = self.conf.get_io_section()
         if args.fastqc_outdir:
             self.fqc['path'] = args.fastq_outdir
         self.fqc['path'] = os.path.join(self.fqc['path'], self.rd['label'])
-        self.fqc['export_path'] = io_conf.get('qc_export_path')
 
     def run(self):
         path_exists(self.rd['rpath'], self.logger)
@@ -71,7 +75,7 @@ class PreprocessingWorkflow(object):
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
 
-        ssht_task = chain(
+        samplesheet_task = chain(
             copy_samplesheet_from_irods.si(conf=self.conf.get_irods_section(),
                                            ssht_path=self.samplesheet['file_path'],
                                            rd_label=self.rd['label']),
@@ -80,11 +84,11 @@ class PreprocessingWorkflow(object):
 
         qc_task = chain(rd_collect_fastq.si(ds_path=self.ds['path']),
                         fastqc.s(self.fqc['path']),
-                        copy_qc_dirs.si(self.ds['path'], self.fqc['export_path']))
+                        copy_qc_dirs.si(self.ds['path'], self.qc['export_path']))
 
         # full pre-processing sequencing rundir pipeline
         pipeline = chain(
-            ssht_task,
+            samplesheet_task,
             move.si(self.rd['rpath'], self.rd['apath']),
             bcl2fastq.si(rd_path=self.rd['apath'],
                          ds_path=self.ds['path'],
