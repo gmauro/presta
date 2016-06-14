@@ -47,7 +47,7 @@ def rd_ready_to_be_preprocessed(**kwargs):
 
     task0 = seq_completed.si(path)
     task1 = check_ownership.si(user=user, group=grp, dir=path)
-    task2 = iexists(ir_conf, ipath)
+    task2 = iexists.si(ir_conf, ipath)
 
     pipeline = group(task0, task1, task2)()
     while pipeline.waiting():
