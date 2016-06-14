@@ -4,6 +4,7 @@ Utilities used by other modules.
 
 import csv
 import os
+import re
 import string
 import sys
 
@@ -17,8 +18,9 @@ class IEMSampleSheetReader(csv.DictReader):
     """
     def __init__(self, f):
         csv.DictReader.__init__(self, f, delimiter=',')
-        self.header = None
-        self.data = None
+        self.header = ''
+        self.data = ''
+
         first_line = f.readline()
         if not first_line.startswith('[Header]'):
             raise ValueError('%s is not an IEM samplesheet'.format(f.name))
@@ -34,6 +36,14 @@ class IEMSampleSheetReader(csv.DictReader):
         self.data = csv.DictReader(f.readlines(), delimiter=',')
 
     def get_body(self, label='Sample_Name', new_value='', replace=True):
+        def sanitize(mystr):
+            """
+            Sanitize string in accordance with Illumina's documentation
+            bcl2fastq2 Conversion Software v2.17 Guide
+            """
+            retainlist="_-"
+            return re.sub(r'[^\w'+retainlist+']', '_', mystr)
+
         body = []
         for i in self.header:
             body.append(i)
@@ -41,14 +51,17 @@ class IEMSampleSheetReader(csv.DictReader):
         body.append(string.join(self.data.fieldnames, ','))
         body.append('\n')
 
+        to_be_sanitized = ['Sample_Project', 'Sample_Name']
         for row in self.data:
             for f in self.data.fieldnames:
                 if replace and f == label:
                     body.append(new_value)
                 else:
-                    body.append(row[f])
-                if f != 'Description':
-                    body.append(',')
+                    if f in to_be_sanitized:
+                        body.append(sanitize(row[f]))
+                    else:
+                        body.append(row[f])
+                body.append(',')
             body.append('\n')
 
         return body
