@@ -34,7 +34,7 @@ class PreprocessingWorkflow(object):
                                    self.rd['label'])
         self.qc = {'export_path':  export_path}
 
-        ssheet = {'basepath': os.path.join(rpath),
+        ssheet = {'basepath': os.path.join(cpath),
                   'filename': 'SampleSheet.csv'}
         ssheet['file_path'] = os.path.join(ssheet['basepath'],
                                            ssheet['filename'])
@@ -58,10 +58,16 @@ class PreprocessingWorkflow(object):
 
     def run(self):
         path_exists(self.rd['rpath'], self.logger)
-        rd_status_checks = rd_ready_to_be_preprocessed(user=self.user,
-                                                       group=self.group,
-                                                       path=self.rd['rpath'])
-        check = rd_status_checks[0] and rd_status_checks[1]
+        rd_status_checks = rd_ready_to_be_preprocessed(
+            user=self.user,
+            group=self.group,
+            path=self.rd['rpath'],
+            rd_label=self.rd['label'],
+            ssht_filename=self.samplesheet['filename'],
+            conf=self.conf.get_irods_section())
+
+        check = rd_status_checks[0] and rd_status_checks[1] and \
+                rd_status_checks[2]
         if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
                 self.rd['label']))
@@ -106,7 +112,7 @@ def make_parser(parser):
     parser.add_argument('--rd_path', metavar="PATH",
                         help="rundir path", required=True)
     parser.add_argument('--output', type=str, help='output path', default='')
-    parser.add_argument('--samplesheet', type=str, help='samplesheet path')
+    #parser.add_argument('--samplesheet', type=str, help='samplesheet path')
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
     parser.add_argument('--no_lane_splitting', action='store_true',
                         help='Do not split fastq by lane.')

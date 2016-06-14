@@ -31,17 +31,40 @@ def rd_collect_fastq(**kwargs):
 
 @app.task(name='presta.app.tasks.rd_ready_to_be_preprocessed')
 def rd_ready_to_be_preprocessed(**kwargs):
+    """
+    Verify if sequencer has ended to write, if rundir's ownership is
+    correct and if samplesheet has been uploaded into iRODS
+    """
     path = kwargs.get('path')
     user = kwargs.get('user')
     grp = kwargs.get('group')
+    rundir_label = kwargs.get('rd_label')
+    samplesheet_filename = kwargs.get('ssht_filename')
+    ir_conf = kwargs.get('conf')
+    ipath = os.path.join(ir_conf['runs_collection'],
+                         rundir_label,
+                         samplesheet_filename)
 
-    task1 = seq_completed.si(path)
-    task2 = check_ownership.si(user=user, group=grp, dir=path)
+    task0 = seq_completed.si(path)
+    task1 = check_ownership.si(user=user, group=grp, dir=path)
+    task2 = iexists(ir_conf, ipath)
 
-    pipeline = group(task1, task2)()
+    pipeline = group(task0, task1, task2)()
     while pipeline.waiting():
         pass
     return pipeline.join()
+
+
+@app.task(name='presta.app.tasks.iexists')
+def iexists(ir_conf, ipath):
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+
+    return ir.exists(ipath)
 
 
 @app.task(name='presta.app.tasks.seq_completed')
