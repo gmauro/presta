@@ -64,7 +64,7 @@ class PreprocessingWorkflow(object):
             path=self.rd['rpath'],
             rd_label=self.rd['label'],
             ssht_filename=self.samplesheet['filename'],
-            conf=self.conf.get_irods_section())
+            ir_conf=self.conf.get_irods_section())
 
         check = rd_status_checks[0] and rd_status_checks[1] and \
                 rd_status_checks[2]

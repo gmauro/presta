@@ -39,8 +39,8 @@ def rd_ready_to_be_preprocessed(**kwargs):
     user = kwargs.get('user')
     grp = kwargs.get('group')
     rundir_label = kwargs.get('rd_label')
-    samplesheet_filename = kwargs.get('ssht_filename')
-    ir_conf = kwargs.get('conf')
+    samplesheet_filename = kwargs.get('ssht_filename', 'SampleSheet.csv')
+    ir_conf = kwargs.get('ir_conf')
     ipath = os.path.join(ir_conf['runs_collection'],
                          rundir_label,
                          samplesheet_filename)

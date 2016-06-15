@@ -20,6 +20,8 @@ class RundirsRootpath(object):
         self.user = do_conf.get('user')
         self.group = do_conf.get('group')
 
+        self.ir_conf = conf.get_irods_section()
+
     def check(self):
         path_exists(self.root_path, self.logger)
         localroot, dirnames, filenames = os.walk(self.root_path).next()
@@ -29,7 +31,10 @@ class RundirsRootpath(object):
         for d in dirnames:
             d_path = os.path.join(self.root_path, d)
             checks = rd_ready_to_be_preprocessed(user=self.user,
-                                                 group=self.group, path=d_path)
+                                                 group=self.group,
+                                                 path=d_path,
+                                                 rd_label=d,
+                                                 ir_conf=self.ir_conf)
             if checks[0]:
                 if checks[1]:
                     completed.append(d)
