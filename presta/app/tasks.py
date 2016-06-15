@@ -4,6 +4,7 @@ from . import app
 from alta.objectstore import build_object_store
 from alta.utils import ensure_dir
 from celery import group
+import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
 from pwd import getpwuid
@@ -77,7 +78,7 @@ def seq_completed(rd_path):
 @app.task(name='presta.app.task.check_ownership')
 def check_ownership(**kwargs):
     user = kwargs.get('user')
-    group = kwargs.get('group')
+    grp = kwargs.get('group')
     d = kwargs.get('dir')
 
     def find_owner(directory):
@@ -86,7 +87,7 @@ def check_ownership(**kwargs):
     def find_group(directory):
         return getgrgid(os.stat(directory).st_gid).gr_name
 
-    return True if user == find_owner(d) and group == find_group(d) else False
+    return True if user == find_owner(d) and grp == find_group(d) else False
 
 
 @app.task(name='presta.app.tasks.copy', ignore_result=True)
@@ -160,27 +161,37 @@ def bcl2fastq(**kwargs):
     ds_path = kwargs.get('ds_path')
     ssht_path = kwargs.get('ssht_path')
     no_lane_splitting = kwargs.get('no_lane_splitting', False)
+    submit_to_queuing_system = kwargs.get('queue', False)
 
     command = 'bcl2fastq'
     rd_arg = '-R {}'.format(rd_path)
     output_arg = '-o {}'.format(ds_path)
     samplesheet_arg = '--sample-sheet {}'.format(ssht_path)
-    args = ['--barcode-mismatches 1',
-            '--ignore-missing-bcls',
-            '--ignore-missing-filter',
-            '--ignore-missing-positions',
-            '--find-adapters-with-sliding-window',
-            '--loading-threads 4',
-            '--demultiplexing-threads 4',
-            '--processing-threads 4',
-            '--writing-threads 4']
+    options = ['--barcode-mismatches 1',
+               '--ignore-missing-bcls',
+               '--ignore-missing-filter',
+               '--ignore-missing-positions',
+               '--find-adapters-with-sliding-window']
+
     if no_lane_splitting:
-        args.append('--no-lane-splitting')
+        options.append('--no-lane-splitting')
 
     cmd_line = shlex.split(' '.join([command, rd_arg, output_arg,
-                                    samplesheet_arg, ' '.join(args)]))
+                                    samplesheet_arg, ' '.join(options)]))
     logger.info('Executing {}'.format(cmd_line))
-    output = runJob(cmd_line)
+
+    if submit_to_queuing_system:
+        home = os.path.expanduser("~")
+        launcher = kwargs.get('launcher', 'launcher')
+
+        jt = {'jobname': '_'.join(['bcl2fq', os.path.dirname(rd_path)]),
+              'nativespecification': '-q eolo -l eolo=1 -l exclusive=True',
+              'remotecommand': os.path.join(home, launcher),
+              'args': [cmd_line]
+              }
+        output = runGEJob(jt)
+    else:
+        output = runJob(cmd_line)
 
     return True if output else False
 
@@ -201,6 +212,17 @@ def fastqc(fq_list, fqc_outdir):
     return True if output else False
 
 
+def runGEJob(jt):
+    with drmaa.Session() as s:
+        jobid = s.runJob(**jt)
+        print('Your job has been submitted with ID %s' % jobid)
+
+        print('Cleaning up')
+        s.deleteJobTemplate(jt)
+
+        return jobid
+
+
 def runJob(cmd):
     try:
         subprocess.check_output(cmd)
@@ -212,5 +234,3 @@ def runJob(cmd):
         else:
             logger.info("no command output available")
         return False
-
-
