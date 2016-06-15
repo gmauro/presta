@@ -108,7 +108,7 @@ def copy_qc_dirs(src, dest):
     task1 = copy.s(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
     task2 = copy.s(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
 
-    job = group(task0, task1, task2).delay()
+    job = group(task0, task1, task2)
 
 
 @app.task(name='presta.app.tasks.copy_samplesheet_from_irods',
