@@ -184,10 +184,10 @@ def bcl2fastq(**kwargs):
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
 
-        jt = {'jobname': '_'.join(['bcl2fq', os.path.dirname(rd_path)]),
-              'nativespecification': '-q eolo -l eolo=1 -l exclusive=True',
-              'remotecommand': os.path.join(home, launcher),
-              'args': [cmd_line]
+        jt = {'jobName': '_'.join(['presta', 'bcl2fq']),
+              'nativeSpecification': '-q eolo -l eolo=1 -l exclusive=True',
+              'remoteCommand': os.path.join(home, launcher),
+              'args': cmd_line
               }
         output = runGEJob(jt)
     else:
@@ -212,15 +212,27 @@ def fastqc(fq_list, fqc_outdir):
     return True if output else False
 
 
-def runGEJob(jt):
-    with drmaa.Session() as s:
-        jobid = s.runJob(**jt)
-        print('Your job has been submitted with ID %s' % jobid)
+def runGEJob(jt_attr):
+    def init_job_template(jt, attr):
+        jt.jobName = attr['jobName']
+        jt.nativeSpecification = attr['nativeSpecification']
+        jt.remoteCommand = attr['remoteCommand']
+        jt.args = attr['args']
+        return jt
 
-        print('Cleaning up')
+    with drmaa.Session() as s:
+        jt = init_job_template(s.createJobTemplate(), jt_attr)
+        jobid = s.runJob(jt)
+        logger.info('Your job has been submitted with ID %s' % jobid)
+
+        retval = s.wait(jobid, drmaa.Session.TIMEOUT_WAIT_FOREVER)
+        logger.info('Job: {0} finished with status {1}'.format(retval.jobId,
+                                                               retval.exitStatus))
+
+        logger.info('Cleaning up')
         s.deleteJobTemplate(jt)
 
-        return jobid
+    return retval.hasExited
 
 
 def runJob(cmd):
