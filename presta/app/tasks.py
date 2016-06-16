@@ -161,7 +161,7 @@ def bcl2fastq(**kwargs):
     ds_path = kwargs.get('ds_path')
     ssht_path = kwargs.get('ssht_path')
     no_lane_splitting = kwargs.get('no_lane_splitting', False)
-    submit_to_queuing_system = kwargs.get('queue', False)
+    submit_to_queuing_system = kwargs.get('queue', True)
 
     command = 'bcl2fastq'
     rd_arg = '-R {}'.format(rd_path)
