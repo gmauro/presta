@@ -184,7 +184,7 @@ def bcl2fastq(**kwargs):
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
 
-        jt = {'jobName': '_'.join(['presta', 'bcl2fq']),
+        jt = {'jobName': '_'.join(['presta', command]),
               'nativeSpecification': '-q eolo -l eolo=1 -l exclusive=True',
               'remoteCommand': os.path.join(home, launcher),
               'args': cmd_line
@@ -197,17 +197,29 @@ def bcl2fastq(**kwargs):
 
 
 @app.task(name='presta.app.tasks.fastqc')
-def fastqc(fq_list, fqc_outdir):
+def fastqc(fq_list, fqc_outdir, **kwargs):
     command = 'fastqc'
     output_arg = '--outdir {}'.format(fqc_outdir)
-    args = ['--threads 4',
-            '--format fastq']
+    options = ['--format fastq']
     fq_list_arg = ' '.join(fq_list)
+    submit_to_queuing_system = kwargs.get('queue', True)
 
-    cmd_line = shlex.split(' '.join([command, output_arg, ' '.join(args),
+    cmd_line = shlex.split(' '.join([command, output_arg, ' '.join(options),
                                      fq_list_arg]))
     logger.info('Executing {}'.format(cmd_line))
-    output = runJob(cmd_line)
+
+    if submit_to_queuing_system:
+        home = os.path.expanduser("~")
+        launcher = kwargs.get('launcher', 'launcher')
+
+        jt = {'jobName': '_'.join(['presta', command]),
+              'nativeSpecification': '-q entu_c7 -l centos7=1 -l exclusive=True',
+              'remoteCommand': os.path.join(home, launcher),
+              'args': cmd_line
+              }
+        output = runGEJob(jt)
+    else:
+        output = runJob(cmd_line)
 
     return True if output else False
 
