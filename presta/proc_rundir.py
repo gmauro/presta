@@ -54,8 +54,7 @@ class PreprocessingWorkflow(object):
 
         if args.fastqc_outdir:
             self.fqc['path'] = args.fastq_outdir
-        self.fqc['path'] = os.path.join(self.fqc['path'], self.rd['label'])
-
+    
     def run(self):
         path_exists(self.rd['rpath'], self.logger)
         rd_status_checks = rd_ready_to_be_preprocessed(
