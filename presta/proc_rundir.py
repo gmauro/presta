@@ -46,6 +46,8 @@ class PreprocessingWorkflow(object):
 
         self.no_lane_splitting = args.no_lane_splitting
 
+        self.queues_conf = conf.get_section('queues')
+
         self._add_config_from_cli(args)
 
     def _add_config_from_cli(self, args):
@@ -88,7 +90,8 @@ class PreprocessingWorkflow(object):
         )
 
         qc_task = chain(rd_collect_fastq.si(ds_path=self.ds['path']),
-                        fastqc.s(self.fqc['path'], queue=True),
+                        fastqc.s(self.fqc['path'], queue=True,
+                                 queue_spec=self.queues_conf.get('low')),
                         copy_qc_dirs.si(self.ds['path'], self.qc['export_path']))
 
         # full pre-processing sequencing rundir pipeline
@@ -98,7 +101,9 @@ class PreprocessingWorkflow(object):
             bcl2fastq.si(rd_path=self.rd['apath'],
                          ds_path=self.ds['path'],
                          ssht_path=self.samplesheet['file_path'],
-                         no_lane_splitting=self.no_lane_splitting),
+                         no_lane_splitting=self.no_lane_splitting,
+                         queue=True,
+                         queue_spec=self.queues_conf.get('low')),
             qc_task).delay()
 
 

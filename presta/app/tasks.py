@@ -162,6 +162,7 @@ def bcl2fastq(**kwargs):
     ssht_path = kwargs.get('ssht_path')
     no_lane_splitting = kwargs.get('no_lane_splitting', False)
     submit_to_queuing_system = kwargs.get('queue', True)
+    queue_spec = kwargs.get('queue_spec')
 
     command = 'bcl2fastq'
     rd_arg = '-R {}'.format(rd_path)
@@ -185,7 +186,7 @@ def bcl2fastq(**kwargs):
         launcher = kwargs.get('launcher', 'launcher')
 
         jt = {'jobName': '_'.join(['presta', command]),
-              'nativeSpecification': '-q eolo -l eolo=1 -l exclusive=True',
+              'nativeSpecification': queue_spec,
               'remoteCommand': os.path.join(home, launcher),
               'args': cmd_line
               }
@@ -203,6 +204,7 @@ def fastqc(fq_list, fqc_outdir, **kwargs):
     options = ['--format fastq']
     fq_list_arg = ' '.join(fq_list)
     submit_to_queuing_system = kwargs.get('queue', True)
+    queue_spec = kwargs.get('queue_spec')
 
     cmd_line = shlex.split(' '.join([command, output_arg, ' '.join(options),
                                      fq_list_arg]))
@@ -213,7 +215,7 @@ def fastqc(fq_list, fqc_outdir, **kwargs):
         launcher = kwargs.get('launcher', 'launcher')
 
         jt = {'jobName': '_'.join(['presta', command]),
-              'nativeSpecification': '-q entu_c7 -l centos7=1 -l exclusive=True',
+              'nativeSpecification': queue_spec,
               'remoteCommand': os.path.join(home, launcher),
               'args': cmd_line
               }
