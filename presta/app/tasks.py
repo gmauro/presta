@@ -197,26 +197,26 @@ def bcl2fastq(**kwargs):
     return True if output else False
 
 
-@app.task(name='presta.app.tasks.qc_runner')
+@app.task(name='presta.app.tasks.qc_runner', ignore_result=True)
 def qc_runner(file_list, **kwargs):
+    def chunk(lis, n):
+        return [lis[i:i + n] for i in range(0, len(lis), n)]
 
-    tasks = []
-    for f in file_list:
-        tasks.append(fastqc([f],
-                            outdir=kwargs.get('outdir'),
-                            queue=kwargs.get('queue'),
-                            queue_spec=kwargs.get('queue_spec')
-                            )
-                     )
-    job = group(tasks)
-    return job.join()
+    chunk_size = kwargs.get('chunk_size', 6)
+    for f in chunk(file_list, chunk_size):
+        fastqc.s(f, outdir=kwargs.get('outdir'),
+                 threads=chunk_size,
+                 queue=kwargs.get('queue'),
+                 queue_spec=kwargs.get('queue_spec')
+                 ).delay()
 
 
 @app.task(name='presta.app.tasks.fastqc')
 def fastqc(fq_list, **kwargs):
     command = 'fastqc'
     output_arg = '--outdir {}'.format(kwargs.get('outdir'))
-    options = ['--format fastq']
+    options = ['--format fastq',
+               '--threads {}'.format(kwargs.get('threads', 1))]
     fq_list_arg = ' '.join(fq_list)
     submit_to_queuing_system = kwargs.get('queue', True)
     queue_spec = kwargs.get('queue_spec')
