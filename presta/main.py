@@ -5,7 +5,8 @@ from importlib import import_module
 
 SUBMOD_NAMES = [
     "check_rundirs",
-    "proc_rundir"
+    "proc_rundir",
+    "qc"
 ]
 SUBMODULES = [import_module("%s.%s" % (__package__, n)) for n in SUBMOD_NAMES]
 
