@@ -185,7 +185,7 @@ def bcl2fastq(**kwargs):
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
 
-        jt = {'jobName': '_'.join(['presta', command]),
+        jt = {'jobName': command,
               'nativeSpecification': queue_spec,
               'remoteCommand': os.path.join(home, launcher),
               'args': cmd_line
@@ -229,7 +229,7 @@ def fastqc(fq_list, **kwargs):
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
 
-        jt = {'jobName': '_'.join(['presta', command]),
+        jt = {'jobName': command,
               'nativeSpecification': queue_spec,
               'remoteCommand': os.path.join(home, launcher),
               'args': cmd_line
@@ -243,7 +243,7 @@ def fastqc(fq_list, **kwargs):
 
 def runGEJob(jt_attr):
     def init_job_template(jt, attr):
-        jt.jobName = attr['jobName']
+        jt.jobName = '_'.join(['presta', attr['jobName']])
         jt.nativeSpecification = attr['nativeSpecification']
         jt.remoteCommand = attr['remoteCommand']
         jt.args = attr['args']
