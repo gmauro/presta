@@ -90,26 +90,32 @@ def check_ownership(**kwargs):
     return True if user == find_owner(d) and grp == find_group(d) else False
 
 
-@app.task(name='presta.app.tasks.copy', ignore_result=True)
+@app.task(name='presta.app.tasks.copy')
 def copy(src, dest):
+    result = False
     try:
         shutil.copytree(src, dest)
+        result = True
     except OSError as e:
         if e.errno == errno.ENOTDIR:
             shutil.copy(src, dest)
         else:
             logger.error('Source not copied. Error: {}'.format(e))
+    return result
 
 
 @app.task(name='presta.app.tasks.copy_qc_dirs', ignore_result=True)
 def copy_qc_dirs(src, dest):
     dirs = ['Stats', 'Reports', 'fastqc']
     ensure_dir(dest)
-    task0 = copy.s(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
-    task1 = copy.s(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
-    task2 = copy.s(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
+    task0 = copy.si(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
+    task1 = copy.si(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
+    task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
 
-    job = group(task0, task1, task2)
+    job = group(task0, task1, task2)()
+    while job.waiting():
+        pass
+    return job.join()
 
 
 @app.task(name='presta.app.tasks.copy_samplesheet_from_irods',
