@@ -4,7 +4,7 @@ import sys
 from alta.utils import ensure_dir
 from presta.utils import path_exists, get_conf
 from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
-     rd_ready_to_be_preprocessed, copy_samplesheet_from_irods, copy_qc_dirs, \
+     rd_ready_to_be_preprocessed, copy_samplesheet_from_irods, \
      replace_values_into_samplesheet
 from celery import chain
 
@@ -91,8 +91,8 @@ class PreprocessingWorkflow(object):
 
         qc_task = chain(rd_collect_fastq.si(ds_path=self.ds['path']),
                         qc_runner.s(outdir=self.fqc['path'], queue=True,
-                                    queue_spec=self.queues_conf.get('low')),
-                        copy_qc_dirs.si(self.ds['path'], self.qc['export_path']))
+                                    queue_spec=self.queues_conf.get('low'))
+                        )
 
         # full pre-processing sequencing rundir pipeline
         pipeline = chain(
