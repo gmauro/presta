@@ -10,7 +10,7 @@ class qcWorkflow(object):
     def run(self):
         self.logger.info('Coping qc dirs from {} to {}'.format(self.dspath,
                                                                self.exportpath))
-        copy_qc_dirs(self.dspath, self.exportpath)
+        copy_qc_dirs.si(self.dspath, self.exportpath).delay()
 
 
 help_doc = """
