@@ -212,7 +212,7 @@ def qc_runner(file_list, **kwargs):
     for f in chunk(file_list, chunk_size):
         fastqc.s(f, outdir=kwargs.get('outdir'),
                  threads=chunk_size,
-                 queue=kwargs.get('queue'),
+                 batch_queuing=kwargs.get('batch_queuing'),
                  queue_spec=kwargs.get('queue_spec')
                  ).delay()
 
@@ -224,14 +224,14 @@ def fastqc(fq_list, **kwargs):
     options = ['--format fastq',
                '--threads {}'.format(kwargs.get('threads', 1))]
     fq_list_arg = ' '.join(fq_list)
-    submit_to_queuing_system = kwargs.get('queue', True)
+    submit_to_batch_scheduler = kwargs.get('batch_queuing', True)
     queue_spec = kwargs.get('queue_spec')
 
     cmd_line = shlex.split(' '.join([command, output_arg, ' '.join(options),
                                      fq_list_arg]))
     logger.info('Executing {}'.format(cmd_line))
 
-    if submit_to_queuing_system:
+    if submit_to_batch_scheduler:
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
 
