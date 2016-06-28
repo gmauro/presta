@@ -46,6 +46,7 @@ class PreprocessingWorkflow(object):
 
         self.no_lane_splitting = args.no_lane_splitting
 
+        self.batch_queuing = args.batch_queuing
         self.queues_conf = conf.get_section('queues')
 
         self._add_config_from_cli(args)
@@ -102,7 +103,7 @@ class PreprocessingWorkflow(object):
                          ds_path=self.ds['path'],
                          ssht_path=self.samplesheet['file_path'],
                          no_lane_splitting=self.no_lane_splitting,
-                         queue=True,
+                         batch_queuing=self.batch_queuing,
                          queue_spec=self.queues_conf.get('low')),
             qc_task).delay()
 
@@ -120,6 +121,11 @@ def make_parser(parser):
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
     parser.add_argument('--no_lane_splitting', action='store_true',
                         help='Do not split fastq by lane.')
+    parser.add_argument('--batch_queuing', dest='batch_queuing', action='store_true',
+                        help='Submit jobs to the batch system (default)')
+    parser.add_argument('--no_batch_queuing', dest='batch_queuing', action='store_false',
+                        help="Do not submit jobs to the batch system")
+    parser.set_defaults(batch_queuing=True)
 
 
 def implementation(logger, args):

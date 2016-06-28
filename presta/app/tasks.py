@@ -167,7 +167,7 @@ def bcl2fastq(**kwargs):
     ds_path = kwargs.get('ds_path')
     ssht_path = kwargs.get('ssht_path')
     no_lane_splitting = kwargs.get('no_lane_splitting', False)
-    submit_to_queuing_system = kwargs.get('queue', True)
+    submit_to_batch_scheduler = kwargs.get('batch_queuing', True)
     queue_spec = kwargs.get('queue_spec')
 
     command = 'bcl2fastq'
@@ -187,7 +187,7 @@ def bcl2fastq(**kwargs):
                                     samplesheet_arg, ' '.join(options)]))
     logger.info('Executing {}'.format(cmd_line))
 
-    if submit_to_queuing_system:
+    if submit_to_batch_scheduler:
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
 
