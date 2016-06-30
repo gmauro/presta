@@ -122,11 +122,6 @@ def make_parser(parser):
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
     parser.add_argument('--no_lane_splitting', action='store_true',
                         help='Do not split fastq by lane.')
-    parser.add_argument('--batch_queuing', dest='batch_queuing', action='store_true',
-                        help='Submit jobs to the batch system (default)')
-    parser.add_argument('--no_batch_queuing', dest='batch_queuing', action='store_false',
-                        help="Do not submit jobs to the batch system")
-    parser.set_defaults(batch_queuing=True)
 
 
 def implementation(logger, args):

@@ -1,20 +1,40 @@
-from presta.app.tasks import copy_qc_dirs
+import os.path
+
+from alta.utils import ensure_dir
+from celery import chain
+from presta.app.tasks import copy_qc_dirs, rd_collect_fastq, qc_runner
+from presta.utils import path_exists, get_conf
 
 
 class qcWorkflow(object):
     def __init__(self, args=None, logger=None):
         self.logger = logger
+        conf = get_conf(logger, args.config_file)
         self.dspath = args.ds_path
         self.exportpath = args.export_path
+        self.batch_queuing = args.batch_queuing
+        self.queues_conf = conf.get_section('queues')
 
     def run(self):
-        self.logger.info('Coping qc dirs from {} to {}'.format(self.dspath,
-                                                               self.exportpath))
-        copy_qc_dirs.si(self.dspath, self.exportpath).delay()
+        fqc_path = os.path(self.dspath, 'fastqc')
+        copy_task = copy_qc_dirs.si(self.dspath, self.exportpath)
+        if not path_exists(fqc_path, self.logger):
+            self.logger.info("Generating Fastqc reports")
+            ensure_dir(fqc_path)
+            qc_task = chain(rd_collect_fastq.si(ds_path=self.dspath),
+                            qc_runner.s(outdir=fqc_path,
+                                        batch_queuing=self.batch_queuing,
+                                        queue_spec=self.queues_conf.get('q_fastqc')),
+                            copy_task
+                            ).delay()
+        else:
+            self.logger.info('Coping qc dirs from {} to {}'.format(self.dspath,
+                                                                   self.exportpath))
+            copy_task.delay()
 
 
 help_doc = """
-export quality control directories
+Generate (if needed) and export quality control reports
 """
 
 
