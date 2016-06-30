@@ -27,6 +27,13 @@ class App(object):
                             help='log file (default=stderr).')
         parser.add_argument('--loglevel', type=str, help='logger level.',
                             choices=LOG_LEVELS, default='INFO')
+        parser.add_argument('--batch_queuing', dest='batch_queuing',
+                            action='store_true',
+                            help='Submit jobs to the batch system (default)')
+        parser.add_argument('--no_batch_queuing', dest='batch_queuing',
+                            action='store_false',
+                            help="Do not submit jobs to the batch system")
+        parser.set_defaults(batch_queuing=True)
 
         subparsers = parser.add_subparsers(dest='subparser_name',
                                            title='subcommands',
