@@ -18,7 +18,7 @@ class qcWorkflow(object):
     def run(self):
         fqc_path = os.path.join(self.dspath, 'fastqc')
         copy_task = copy_qc_dirs.si(self.dspath, self.exportpath)
-        if not path_exists(fqc_path, self.logger):
+        if not path_exists(fqc_path, self.logger, force=False):
             self.logger.info("Generating Fastqc reports")
             ensure_dir(fqc_path)
             qc_task = chain(rd_collect_fastq.si(ds_path=self.dspath),
