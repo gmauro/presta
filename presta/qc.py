@@ -16,7 +16,7 @@ class qcWorkflow(object):
         self.queues_conf = conf.get_section('queues')
 
     def run(self):
-        fqc_path = os.path(self.dspath, 'fastqc')
+        fqc_path = os.path.join(self.dspath, 'fastqc')
         copy_task = copy_qc_dirs.si(self.dspath, self.exportpath)
         if not path_exists(fqc_path, self.logger):
             self.logger.info("Generating Fastqc reports")
