@@ -1,0 +1,7 @@
+#!/bin/bash
+
+. /Archive/Software/Modules/3.2.10/init/bash
+
+module load bcl2fastq2-v2.17.1
+
+$@

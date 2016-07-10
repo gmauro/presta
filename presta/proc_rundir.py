@@ -3,8 +3,8 @@ import sys
 
 from alta.utils import ensure_dir
 from presta.utils import path_exists, get_conf
-from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, fastqc, \
-     rd_ready_to_be_preprocessed, copy_samplesheet_from_irods, copy_qc_dirs, \
+from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
+     rd_ready_to_be_preprocessed, copy_samplesheet_from_irods, \
      replace_values_into_samplesheet
 from celery import chain
 
@@ -46,6 +46,9 @@ class PreprocessingWorkflow(object):
 
         self.no_lane_splitting = args.no_lane_splitting
 
+        self.batch_queuing = args.batch_queuing
+        self.queues_conf = conf.get_section('queues')
+
         self._add_config_from_cli(args)
 
     def _add_config_from_cli(self, args):
@@ -54,7 +57,6 @@ class PreprocessingWorkflow(object):
 
         if args.fastqc_outdir:
             self.fqc['path'] = args.fastq_outdir
-        self.fqc['path'] = os.path.join(self.fqc['path'], self.rd['label'])
 
     def run(self):
         path_exists(self.rd['rpath'], self.logger)
@@ -89,8 +91,10 @@ class PreprocessingWorkflow(object):
         )
 
         qc_task = chain(rd_collect_fastq.si(ds_path=self.ds['path']),
-                        fastqc.s(self.fqc['path']),
-                        copy_qc_dirs.si(self.ds['path'], self.qc['export_path']))
+                        qc_runner.s(outdir=self.fqc['path'],
+                                    batch_queuing=self.batch_queuing,
+                                    queue_spec=self.queues_conf.get('low'))
+                        )
 
         # full pre-processing sequencing rundir pipeline
         pipeline = chain(
@@ -99,7 +103,9 @@ class PreprocessingWorkflow(object):
             bcl2fastq.si(rd_path=self.rd['apath'],
                          ds_path=self.ds['path'],
                          ssht_path=self.samplesheet['file_path'],
-                         no_lane_splitting=self.no_lane_splitting),
+                         no_lane_splitting=self.no_lane_splitting,
+                         batch_queuing=self.batch_queuing,
+                         queue_spec=self.queues_conf.get('low')),
             qc_task).delay()
 
 

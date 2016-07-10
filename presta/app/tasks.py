@@ -4,6 +4,7 @@ from . import app
 from alta.objectstore import build_object_store
 from alta.utils import ensure_dir
 from celery import group
+import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
 from pwd import getpwuid
@@ -77,7 +78,7 @@ def seq_completed(rd_path):
 @app.task(name='presta.app.task.check_ownership')
 def check_ownership(**kwargs):
     user = kwargs.get('user')
-    group = kwargs.get('group')
+    grp = kwargs.get('group')
     d = kwargs.get('dir')
 
     def find_owner(directory):
@@ -86,29 +87,35 @@ def check_ownership(**kwargs):
     def find_group(directory):
         return getgrgid(os.stat(directory).st_gid).gr_name
 
-    return True if user == find_owner(d) and group == find_group(d) else False
+    return True if user == find_owner(d) and grp == find_group(d) else False
 
 
-@app.task(name='presta.app.tasks.copy', ignore_result=True)
+@app.task(name='presta.app.tasks.copy')
 def copy(src, dest):
+    result = False
     try:
         shutil.copytree(src, dest)
+        result = True
     except OSError as e:
         if e.errno == errno.ENOTDIR:
             shutil.copy(src, dest)
         else:
             logger.error('Source not copied. Error: {}'.format(e))
+    return result
 
 
 @app.task(name='presta.app.tasks.copy_qc_dirs', ignore_result=True)
 def copy_qc_dirs(src, dest):
     dirs = ['Stats', 'Reports', 'fastqc']
     ensure_dir(dest)
-    task0 = copy.s(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
-    task1 = copy.s(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
-    task2 = copy.s(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
+    task0 = copy.si(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
+    task1 = copy.si(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
+    task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
 
-    job = group(task0, task1, task2)
+    job = group(task0, task1, task2)()
+    while job.waiting():
+        pass
+    return job.join()
 
 
 @app.task(name='presta.app.tasks.copy_samplesheet_from_irods',
@@ -160,45 +167,107 @@ def bcl2fastq(**kwargs):
     ds_path = kwargs.get('ds_path')
     ssht_path = kwargs.get('ssht_path')
     no_lane_splitting = kwargs.get('no_lane_splitting', False)
+    submit_to_batch_scheduler = kwargs.get('batch_queuing', True)
+    queue_spec = kwargs.get('queue_spec')
 
     command = 'bcl2fastq'
     rd_arg = '-R {}'.format(rd_path)
     output_arg = '-o {}'.format(ds_path)
     samplesheet_arg = '--sample-sheet {}'.format(ssht_path)
-    args = ['--barcode-mismatches 1',
-            '--ignore-missing-bcls',
-            '--ignore-missing-filter',
-            '--ignore-missing-positions',
-            '--find-adapters-with-sliding-window',
-            '--loading-threads 4',
-            '--demultiplexing-threads 4',
-            '--processing-threads 4',
-            '--writing-threads 4']
+    options = ['--barcode-mismatches 1',
+               '--ignore-missing-bcls',
+               '--ignore-missing-filter',
+               '--ignore-missing-positions',
+               '--find-adapters-with-sliding-window']
+
     if no_lane_splitting:
-        args.append('--no-lane-splitting')
+        options.append('--no-lane-splitting')
 
     cmd_line = shlex.split(' '.join([command, rd_arg, output_arg,
-                                    samplesheet_arg, ' '.join(args)]))
+                                    samplesheet_arg, ' '.join(options)]))
     logger.info('Executing {}'.format(cmd_line))
-    output = runJob(cmd_line)
+
+    if submit_to_batch_scheduler:
+        home = os.path.expanduser("~")
+        launcher = kwargs.get('launcher', 'launcher')
+
+        jt = {'jobName': command,
+              'nativeSpecification': queue_spec,
+              'remoteCommand': os.path.join(home, launcher),
+              'args': cmd_line
+              }
+        output = runGEJob(jt)
+    else:
+        output = runJob(cmd_line)
 
     return True if output else False
+
+
+@app.task(name='presta.app.tasks.qc_runner', ignore_result=True)
+def qc_runner(file_list, **kwargs):
+    def chunk(lis, n):
+        return [lis[i:i + n] for i in range(0, len(lis), n)]
+
+    chunk_size = kwargs.get('chunk_size', 6)
+    for f in chunk(file_list, chunk_size):
+        fastqc.s(f, outdir=kwargs.get('outdir'),
+                 threads=chunk_size,
+                 batch_queuing=kwargs.get('batch_queuing'),
+                 queue_spec=kwargs.get('queue_spec')
+                 ).delay()
 
 
 @app.task(name='presta.app.tasks.fastqc')
-def fastqc(fq_list, fqc_outdir):
+def fastqc(fq_list, **kwargs):
     command = 'fastqc'
-    output_arg = '--outdir {}'.format(fqc_outdir)
-    args = ['--threads 4',
-            '--format fastq']
+    output_arg = '--outdir {}'.format(kwargs.get('outdir'))
+    options = ['--format fastq',
+               '--threads {}'.format(kwargs.get('threads', 1))]
     fq_list_arg = ' '.join(fq_list)
+    submit_to_batch_scheduler = kwargs.get('batch_queuing', True)
+    queue_spec = kwargs.get('queue_spec')
 
-    cmd_line = shlex.split(' '.join([command, output_arg, ' '.join(args),
+    cmd_line = shlex.split(' '.join([command, output_arg, ' '.join(options),
                                      fq_list_arg]))
     logger.info('Executing {}'.format(cmd_line))
-    output = runJob(cmd_line)
+
+    if submit_to_batch_scheduler:
+        home = os.path.expanduser("~")
+        launcher = kwargs.get('launcher', 'launcher')
+
+        jt = {'jobName': command,
+              'nativeSpecification': queue_spec,
+              'remoteCommand': os.path.join(home, launcher),
+              'args': cmd_line
+              }
+        output = runGEJob(jt)
+    else:
+        output = runJob(cmd_line)
 
     return True if output else False
+
+
+def runGEJob(jt_attr):
+    def init_job_template(jt, attr):
+        jt.jobName = '_'.join(['presta', attr['jobName']])
+        jt.nativeSpecification = attr['nativeSpecification']
+        jt.remoteCommand = attr['remoteCommand']
+        jt.args = attr['args']
+        return jt
+
+    with drmaa.Session() as s:
+        jt = init_job_template(s.createJobTemplate(), jt_attr)
+        jobid = s.runJob(jt)
+        logger.info('Your job has been submitted with ID %s' % jobid)
+
+        retval = s.wait(jobid, drmaa.Session.TIMEOUT_WAIT_FOREVER)
+        logger.info('Job: {0} finished with status {1}'.format(retval.jobId,
+                                                               retval.exitStatus))
+
+        logger.info('Cleaning up')
+        s.deleteJobTemplate(jt)
+
+    return retval.hasExited
 
 
 def runJob(cmd):
@@ -212,5 +281,3 @@ def runJob(cmd):
         else:
             logger.info("no command output available")
         return False
-
-
