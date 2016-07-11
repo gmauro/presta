@@ -34,8 +34,9 @@ class DeliveryWorkflow(object):
             input_path = args.input_path
         else:
             io_conf = conf.get_io_section()
-            input_path = io_conf.get('rundirs_root_path')
-        self.input_path = path_exists(input_path, logger)
+            input_path = io_conf.get('archive_root_path')
+        path_exists(input_path, logger)
+        self.input_path = input_path
 
         # output path must exists as parser argument or as config file argument
         if args.output_path:
@@ -46,7 +47,8 @@ class DeliveryWorkflow(object):
 
         if not path_exists(output_path, logger, force=False):
             ensure_dir(output_path)
-        self.output_path = path_exists(output_path, logger)
+        path_exists(output_path, logger)
+        self.output_path = output_path
 
     def __fs_carrier(self, ipath, opath):
         c = Client(conf=self.conf, logger=self.logger)
@@ -54,12 +56,13 @@ class DeliveryWorkflow(object):
         batch_info = c.bk.get_batch_info(self.batch_id)
         bids = [_ for _ in batch_info.keys() if batch_info[_].get('type') in
                 ['SAMPLE-IN-FLOWCELL']]
-        self.logger.info('Looking for files related to {} Bika id'.format(
+        self.logger.info('Looking for files related to {} Bika ids'.format(
             len(bids)))
+        self.logger.info('Starting from {}'.format(ipath))
         if len(bids) > 0:
             ensure_dir(os.path.join(opath, self.batch_id))
 
-        dm = DatasetsManager(self.logger)
+        dm = DatasetsManager(self.logger, bids)
         datasets_info = dm.collect_fastq_from_fs(ipath)
 
         for bid in bids:
@@ -105,7 +108,7 @@ def make_parser(parser):
     parser.add_argument('--destination', '-d', type=str, choices=DESTINATIONS,
                         help='where datasets have to be delivered',
                         required=True)
-    parser.add_argument('--dry-run', action='store_true', default=False,
+    parser.add_argument('--dry_run', action='store_true', default=False,
                         help='Delivery will be only described.')
     parser.add_argument('--input_path', '-i', metavar="PATH",
                         help="Where input datasets are stored")
