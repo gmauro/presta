@@ -26,11 +26,7 @@ class DeliveryWorkflow(object):
         self.destination = args.destination
         self.dry_run = args.dry_run
 
-        conf = None
-        if args.config_file:
-            path_exists(args.config_file, logger, force=False)
-            config_file = args.config_file
-            conf = get_conf(logger, config_file)
+        conf = get_conf(logger, args.config_file)
         self.conf = conf
 
         # input path must exists as parser argument or as config file argument
@@ -54,6 +50,7 @@ class DeliveryWorkflow(object):
 
     def __fs_carrier(self, ipath, opath):
         c = Client(conf=self.conf, logger=self.logger)
+        c.init_bika()
         batch_info = c.bk.get_batch_info(self.batch_id)
         bids = [_ for _ in batch_info.keys() if batch_info[_].get('type') in
                 ['SAMPLE-IN-FLOWCELL']]
