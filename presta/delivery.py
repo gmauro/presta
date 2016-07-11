@@ -63,7 +63,8 @@ class DeliveryWorkflow(object):
             ensure_dir(os.path.join(opath, self.batch_id))
 
         dm = DatasetsManager(self.logger, bids)
-        datasets_info = dm.collect_fastq_from_fs(ipath)
+        datasets_info, count = dm.collect_fastq_from_fs(ipath)
+        self.logger.info("found {} files".format(count))
 
         for bid in bids:
             if bid in datasets_info:

@@ -12,6 +12,7 @@ class DatasetsManager(object):
 
     def collect_fastq_from_fs(self, path):
         results = dict()
+        count = 0
         file_ext = 'fastq.gz'
         dir_label = 'datasets'
         for (localroot, dirnames, filenames) in os.walk(path):
@@ -32,8 +33,9 @@ class DatasetsManager(object):
                         if _id not in results:
                             results[_id] = []
                         results[_id].append(list_item)
+                        count += 1
 
-        return results
+        return results, count
 
     @staticmethod
     def collect_fastq_from_irods(ipath):
