@@ -13,8 +13,8 @@ import os
 from alta.utils import ensure_dir
 from client import Client
 from datasets import DatasetsManager
+from presta.app.tasks import copy
 from presta.utils import path_exists, get_conf
-from shutil import copyfile
 
 DESTINATIONS = ['collection', 'path', 'library', 'ftp_folder']
 
@@ -84,7 +84,7 @@ class DeliveryWorkflow(object):
                             dst)))
                     else:
                         if not self.dry_run:
-                            copyfile(src, dst)
+                            copy.si(src, dst).delay()
                             self.logger.info(
                                 '{} copied'.format(os.path.basename(dst)))
             else:
