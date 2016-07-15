@@ -49,15 +49,26 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task0 = seq_completed.si(path)
     task1 = check_ownership.si(user=user, group=grp, dir=path)
     task2 = iexists.si(ir_conf, ipath)
+    task3 = check_barcodes_size.si(ir_conf, ipath)
 
-    pipeline = group(task0, task1, task2)()
+    pipeline = group(task0, task1, task2, task3)()
     while pipeline.waiting():
         pass
     return pipeline.join()
 
 
-def check_barcodes_size(file_path):
-    with open(file_path, 'r') as f:
+@app.task(name='presta.app.tasks.check_barcodes_size')
+def check_barcodes_size(ir_conf, ipath):
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+
+    iobj = ir.get_object(ipath)
+
+    with iobj.open('r') as f:
         samplesheet = IEMSampleSheetReader(f)
 
     return samplesheet.barcodes_have_the_same_size()
@@ -149,7 +160,8 @@ def copy_samplesheet_from_irods(**kwargs):
     return samplesheet_file_path
 
 
-@app.task(name='presta.app.tasks.replace_values_into_samplesheet')
+@app.task(name='presta.app.tasks.replace_values_into_samplesheet',
+          ignore_result=True)
 def replace_values_into_samplesheet(file_path):
     with open(file_path, 'r') as f:
         samplesheet = IEMSampleSheetReader(f)
@@ -157,8 +169,6 @@ def replace_values_into_samplesheet(file_path):
     with open(file_path, 'w') as f:
         for row in samplesheet.get_body(replace=True):
             f.write(row)
-
-    return samplesheet.barcodes_have_the_same_size()
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)
