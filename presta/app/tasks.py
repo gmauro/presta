@@ -56,6 +56,13 @@ def rd_ready_to_be_preprocessed(**kwargs):
     return pipeline.join()
 
 
+def check_barcodes_size(file_path):
+    with open(file_path, 'r') as f:
+        samplesheet = IEMSampleSheetReader(f)
+
+    return samplesheet.barcodes_have_the_same_size()
+
+
 @app.task(name='presta.app.tasks.iexists')
 def iexists(ir_conf, ipath):
     ir = build_object_store(store='irods',
@@ -142,8 +149,7 @@ def copy_samplesheet_from_irods(**kwargs):
     return samplesheet_file_path
 
 
-@app.task(name='presta.app.tasks.replace_values_into_samplesheet',
-          ignore_result=True)
+@app.task(name='presta.app.tasks.replace_values_into_samplesheet')
 def replace_values_into_samplesheet(file_path):
     with open(file_path, 'r') as f:
         samplesheet = IEMSampleSheetReader(f)
@@ -151,6 +157,8 @@ def replace_values_into_samplesheet(file_path):
     with open(file_path, 'w') as f:
         for row in samplesheet.get_body(replace=True):
             f.write(row)
+
+    return samplesheet.barcodes_have_the_same_size()
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)
