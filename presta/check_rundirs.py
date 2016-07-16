@@ -23,9 +23,18 @@ class RundirsRootpath(object):
         self.ir_conf = conf.get_irods_section()
 
     def check(self):
+        def flatten(l):
+            out = []
+            for item in l:
+                if isinstance(item, (list, tuple)):
+                    out.extend(flatten(item))
+                else:
+                    out.append(item)
+            return out
+
         path_exists(self.root_path, self.logger)
         localroot, dirnames, filenames = os.walk(self.root_path).next()
-        
+
         positive_labels = ['finished', "ownership ok" ,
                            'SampleSheet found', 'Barcodes have the same size']
         negative_labels = ['running ', "waiting for ownership's modification",
@@ -41,6 +50,7 @@ class RundirsRootpath(object):
                                                  path=d_path,
                                                  rd_label=d,
                                                  ir_conf=self.ir_conf)
+            checks = flatten(checks)
             for i in range(len(checks)):
                 if checks[i]:
                     dir_dict[d].append(positive_labels[i])
@@ -50,6 +60,7 @@ class RundirsRootpath(object):
         self.logger.info('Checking rundirs in: {}'.format(self.root_path))
 
         for d, labels in dir_dict.iteritems():
+            self.logger.info(' ')
             self.logger.info('Rundir {}'.format(d))
             self.logger.info('{}'.format(labels))
 
