@@ -48,17 +48,16 @@ def rd_ready_to_be_preprocessed(**kwargs):
 
     task0 = seq_completed.si(path)
     task1 = check_ownership.si(user=user, group=grp, dir=path)
-    task2 = iexists.si(ir_conf, ipath)
-    task3 = check_barcodes_size.si(ir_conf, ipath)
+    task2 = samplesheet_ready.si(ir_conf, ipath)
 
-    pipeline = group(task0, task1, task2, task3)()
+    pipeline = group(task0, task1, task2)()
     while pipeline.waiting():
         pass
     return pipeline.join()
 
 
-@app.task(name='presta.app.tasks.check_barcodes_size')
-def check_barcodes_size(ir_conf, ipath):
+@app.task(name='presta.app.tasks.samplesheet_ready')
+def samplesheet_ready(ir_conf, ipath):
     ir = build_object_store(store='irods',
                             host=ir_conf['host'],
                             port=ir_conf['port'],
@@ -66,24 +65,43 @@ def check_barcodes_size(ir_conf, ipath):
                             password=ir_conf['password'].encode('ascii'),
                             zone=ir_conf['zone'])
 
-    iobj = ir.get_object(ipath)
+    exists, iobj = ir.exists(ipath, delivery=True)
+    if exists:
+        with iobj.open('r') as f:
+            samplesheet = IEMSampleSheetReader(f)
 
-    with iobj.open('r') as f:
-        samplesheet = IEMSampleSheetReader(f)
+        return exists, samplesheet.barcodes_have_the_same_size()
+    else:
+        return False, False
 
-    return samplesheet.barcodes_have_the_same_size()
 
-
-@app.task(name='presta.app.tasks.iexists')
-def iexists(ir_conf, ipath):
-    ir = build_object_store(store='irods',
-                            host=ir_conf['host'],
-                            port=ir_conf['port'],
-                            user=ir_conf['user'],
-                            password=ir_conf['password'].encode('ascii'),
-                            zone=ir_conf['zone'])
-
-    return ir.exists(ipath)
+# @app.task(name='presta.app.tasks.check_barcodes_size')
+# def check_barcodes_size(ir_conf, ipath):
+#     ir = build_object_store(store='irods',
+#                             host=ir_conf['host'],
+#                             port=ir_conf['port'],
+#                             user=ir_conf['user'],
+#                             password=ir_conf['password'].encode('ascii'),
+#                             zone=ir_conf['zone'])
+#
+#     exists, iobj = ir.exists(ipath, delivery=True)
+#     if iobj:
+#         with iobj.open('r') as f:
+#             samplesheet = IEMSampleSheetReader(f)
+#
+#         return samplesheet.barcodes_have_the_same_size()
+#
+#
+# @app.task(name='presta.app.tasks.iexists')
+# def iexists(ir_conf, ipath):
+#     ir = build_object_store(store='irods',
+#                             host=ir_conf['host'],
+#                             port=ir_conf['port'],
+#                             user=ir_conf['user'],
+#                             password=ir_conf['password'].encode('ascii'),
+#                             zone=ir_conf['zone'])
+#
+#     return ir.exists(ipath)
 
 
 @app.task(name='presta.app.tasks.seq_completed')

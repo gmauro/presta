@@ -25,33 +25,33 @@ class RundirsRootpath(object):
     def check(self):
         path_exists(self.root_path, self.logger)
         localroot, dirnames, filenames = os.walk(self.root_path).next()
-        running = []
-        completed = []
-        ownership = []
+        
+        positive_labels = ['finished', "ownership ok" ,
+                           'SampleSheet found', 'Barcodes have the same size']
+        negative_labels = ['running ', "waiting for ownership's modification",
+                           'SampleSheet not found',
+                           "Barcodes don't have the same size"]
+
+        dir_dict = dict()
         for d in dirnames:
+            dir_dict[d] = []
             d_path = os.path.join(self.root_path, d)
             checks = rd_ready_to_be_preprocessed(user=self.user,
                                                  group=self.group,
                                                  path=d_path,
                                                  rd_label=d,
                                                  ir_conf=self.ir_conf)
-            if checks[0]:
-                if checks[1]:
-                    completed.append(d)
+            for i in range(len(checks)):
+                if checks[i]:
+                    dir_dict[d].append(positive_labels[i])
                 else:
-                    ownership.append(d)
-            else:
-                running.append(d)
+                    dir_dict[d].append(negative_labels[i])
+
         self.logger.info('Checking rundirs in: {}'.format(self.root_path))
-        self.logger.info('Rundirs running:')
-        for d in running:
-            self.logger.info('{}'.format(d))
-        self.logger.info("Rundirs waiting for ownership's modification:")
-        for d in ownership:
-                self.logger.info('{}'.format(d))
-        self.logger.info('Rundirs ready to be pre-processed:')
-        for d in completed:
-            self.logger.info('{}'.format(d))
+
+        for d, labels in dir_dict.iteritems():
+            self.logger.info('Rundir {}'.format(d))
+            self.logger.info('{}'.format(labels))
 
 
 help_doc = """
