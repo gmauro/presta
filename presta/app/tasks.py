@@ -203,6 +203,7 @@ def bcl2fastq(**kwargs):
     ds_path = kwargs.get('ds_path')
     ssht_path = kwargs.get('ssht_path')
     no_lane_splitting = kwargs.get('no_lane_splitting', False)
+    barcode_mismatches = kwargs.get('barcode_mismatches', 1)
     submit_to_batch_scheduler = kwargs.get('batch_queuing', True)
     queue_spec = kwargs.get('queue_spec')
 
@@ -210,11 +211,11 @@ def bcl2fastq(**kwargs):
     rd_arg = '-R {}'.format(rd_path)
     output_arg = '-o {}'.format(ds_path)
     samplesheet_arg = '--sample-sheet {}'.format(ssht_path)
-    options = ['--barcode-mismatches 1',
-               '--ignore-missing-bcls',
+    options = ['--ignore-missing-bcls',
                '--ignore-missing-filter',
                '--ignore-missing-positions',
-               '--find-adapters-with-sliding-window']
+               '--find-adapters-with-sliding-window',
+               '--barcode_mismatches {}'.format(barcode_mismatches)]
 
     if no_lane_splitting:
         options.append('--no-lane-splitting')

@@ -46,6 +46,8 @@ class PreprocessingWorkflow(object):
 
         self.no_lane_splitting = args.no_lane_splitting
 
+        self.barcode_mismatches = args.barcode_mismatches
+
         self.batch_queuing = args.batch_queuing
         self.queues_conf = conf.get_section('queues')
 
@@ -104,6 +106,7 @@ class PreprocessingWorkflow(object):
                          ds_path=self.ds['path'],
                          ssht_path=self.samplesheet['file_path'],
                          no_lane_splitting=self.no_lane_splitting,
+                         barcode_mismatches = self.barcode_mismatches,
                          batch_queuing=self.batch_queuing,
                          queue_spec=self.queues_conf.get('low')),
             qc_task).delay()
@@ -122,6 +125,8 @@ def make_parser(parser):
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
     parser.add_argument('--no_lane_splitting', action='store_true',
                         help='Do not split fastq by lane.')
+    parser.add_argument("--barcode_mismatches", type=int, choices=[0, 1, 2],
+                        default=1, help='Number of allowed mismatches per index')
 
 
 def implementation(logger, args):
