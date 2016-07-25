@@ -10,24 +10,42 @@ Handle the delivery of NGS data obtained from the pre-processing step
 """
 
 import os
+import sys
+
+from ansible.parsing.dataloader import DataLoader
+from ansible.vars import VariableManager
+from ansible.inventory import Inventory
+from ansible.executor.playbook_executor import PlaybookExecutor
 from alta.utils import ensure_dir
+from collections import namedtuple
 from client import Client
 from datasets import DatasetsManager
 from presta.app.tasks import copy
 from presta.utils import path_exists, get_conf
 
-DESTINATIONS = ['collection', 'path', 'library', 'ftp_folder']
+
+DESTINATIONS = ['collection', 'path', 'library', 'ftp']
 
 
 class DeliveryWorkflow(object):
     def __init__(self, args=None, logger=None):
         self.logger = logger
-        self.batch_id = args.batch_id
         self.destination = args.destination
         self.dry_run = args.dry_run
 
         conf = get_conf(logger, args.config_file)
         self.conf = conf
+
+        self.batch_id = batch_id = args.batch_id
+        c = Client(conf=conf, logger=logger)
+        c.init_bika()
+        batch_info = c.bk.get_batch_info(batch_id)
+        if batch_info:
+            self.batch_info = batch_info
+        else:
+            logger.error('I have retrieved any information of the samples '
+                         'owned by the batch {}'.format(batch_id))
+            sys.exit()
 
         # input path must exists as parser argument or as config file argument
         if args.input_path:
@@ -38,24 +56,18 @@ class DeliveryWorkflow(object):
         path_exists(input_path, logger)
         self.input_path = input_path
 
-        # output path must exists as parser argument or as config file argument
-        if args.output_path:
-            output_path = args.output_path
-        else:
-            io_conf = conf.get_io_section()
-            output_path = io_conf.get('ds_export_path')
-
-        if not path_exists(output_path, logger, force=False):
-            ensure_dir(output_path)
-        path_exists(output_path, logger)
+        output_path = args.output_path if args.output_path else None
         self.output_path = output_path
 
-    def __fs_carrier(self, ipath, opath):
-        c = Client(conf=self.conf, logger=self.logger)
-        c.init_bika()
-        batch_info = c.bk.get_batch_info(self.batch_id)
-        bids = [_ for _ in batch_info.keys() if batch_info[_].get('type') in
-                ['SAMPLE-IN-FLOWCELL']]
+        inventory = args.inventory if args.inventory else None
+        self.inventory = inventory
+
+        playbook_path = args.playbook_path if args.playbook_path else None
+        self.playbook_path = playbook_path
+
+    def __fs2fs_carrier(self, ipath, opath):
+        bids = [_ for _ in self.batch_info.keys() if self.batch_info[_].get(
+            'type') in ['SAMPLE-IN-FLOWCELL']]
         self.logger.info('Looking for files related to {} Bika ids'.format(
             len(bids)))
         self.logger.info('Starting from {}'.format(ipath))
@@ -72,7 +84,7 @@ class DeliveryWorkflow(object):
                     src = f.get('filepath')
                     read = f.get('read_label')
                     ext = f.get('file_ext')
-                    sample_label = batch_info[bid].get('client_sample_id')
+                    sample_label = self.batch_info[bid].get('client_sample_id')
                     sample_label = '_'.join(
                         [sample_label.replace(' ', '_'), read])
                     sample_label = '.'.join([sample_label, ext])
@@ -93,9 +105,109 @@ class DeliveryWorkflow(object):
                 self.logger.warning(msg)
                 self.logger.info('{} skipped'.format(bid))
 
+    def __execute_playbook(self, playbook, inventory_file,
+                           random_user, random_clear_text_password):
+        path_exists(playbook, self.logger)
+        path_exists(inventory_file, self.logger)
+
+        variable_manager = VariableManager()
+        loader = DataLoader()
+
+        inventory = Inventory(loader=loader,
+                              variable_manager=variable_manager,
+                              host_list=inventory_file)
+
+        Options = namedtuple('Options', ['listtags', 'listtasks',
+                                         'listhosts', 'syntax', 'connection',
+                                         'module_path', 'forks',
+                                         'remote_user', 'private_key_file',
+                                         'ssh_common_args', 'ssh_extra_args',
+                                         'sftp_extra_args', 'scp_extra_args',
+                                         'become', 'become_method',
+                                         'become_user', 'verbosity', 'check'])
+        options = Options(listtags=False, listtasks=False, listhosts=False,
+                          syntax=False, connection='ssh', module_path=None,
+                          forks=1, remote_user=None,
+                          private_key_file=None, ssh_common_args=None,
+                          ssh_extra_args=None, sftp_extra_args=None,
+                          scp_extra_args=None, become=True,
+                          become_method='sudo', become_user='root',
+                          verbosity=None, check=False)
+
+        variable_manager.extra_vars = {'r_user': random_user,
+                                       'r_password': random_clear_text_password}
+        passwords = {}
+
+        pbex = PlaybookExecutor(playbooks=[playbook],
+                                inventory=inventory,
+                                variable_manager=variable_manager,
+                                loader=loader, options=options,
+                                passwords=passwords)
+        results = pbex.run()
+        return results
+
     def run(self):
         if self.destination == 'path':
-            self.__fs_carrier(self.input_path, self.output_path)
+            io_conf = self.conf.get_io_section()
+            if self.output_path:
+                output_path = self.output_path
+            else:
+                output_path = io_conf.get('ds_export_path')
+
+            # if not path_exists(output_path, logger, force=False):
+            #     ensure_dir(output_path)
+            # path_exists(output_path, logger)
+            self.__fs2fs_carrier(self.input_path, output_path)
+
+        if self.destination == 'ftp':
+            def pass_gen(length):
+                import string
+                import random
+
+                ascii = string.ascii_letters + string.digits + '@-_'
+
+                return "".join([list(set(ascii))[random.randint(0, len(list(set(
+                    ascii))) - 1)] for i in range(length)])
+
+            random_user = pass_gen(8)
+            random_clear_text_password = pass_gen(12)
+
+            self.logger.info('Creating random account into the ftp server')
+            self.logger.info('user: {}'.format(random_user))
+            self.logger.info('password: {}'.format(random_clear_text_password))
+
+            playbook_label = 'create_ftp_user.yml'
+            if self.playbook_path:
+                playbook_path = self.playbook_path
+            else:
+                io_conf = self.conf.get_io_section()
+                playbook_path = io_conf.get('playbooks_path')
+            playbook = os.path.join(playbook_path, playbook_label)
+            path_exists(playbook, self.logger)
+
+            inventory_label = 'inventory'
+            if self.inventory:
+                inventory = self.inventory
+            else:
+                io_conf = self.conf.get_io_section()
+                inventory = os.path.join(io_conf.get('playbooks_path'),
+                                         inventory_label)
+            path_exists(inventory, self.logger)
+
+            results = self.__execute_playbook(playbook, inventory,
+                                              random_user,
+                                              random_clear_text_password)
+            self.logger.info('Playbook result: {}'.format(results))
+
+            if self.output_path:
+                output_path = self.output_path
+            else:
+                io_conf = self.conf.get_io_section()
+                output_path = os.path.join(io_conf.get('ftp_export_path'),
+                                           random_user)
+            path_exists(output_path, self.logger)
+
+            self.__fs2fs_carrier(self.input_path, output_path)
 
 
 help_doc = """
@@ -115,6 +227,10 @@ def make_parser(parser):
                         help="Where input datasets are stored")
     parser.add_argument('--output_path', '-o', metavar="PATH",
                         help="Where output datasets have to be stored")
+    parser.add_argument('--playbook_path', metavar="PATH",
+                        help="Path to playbooks dir")
+    parser.add_argument('--inventory', metavar="PATH",
+                        help="Path to inventory file")
 
 
 def implementation(logger, args):
