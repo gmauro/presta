@@ -43,7 +43,7 @@ class DeliveryWorkflow(object):
         if batch_info:
             self.batch_info = batch_info
         else:
-            logger.error('I have retrieved any information of the samples '
+            logger.error('I have not found any information of the samples '
                          'owned by the batch {}'.format(batch_id))
             sys.exit()
 
