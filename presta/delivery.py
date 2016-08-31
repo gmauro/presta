@@ -25,7 +25,7 @@ from presta.utils import path_exists, get_conf
 
 
 DESTINATIONS = ['collection', 'path', 'library', 'ftp']
-
+SAMPLE_TYPES_TOSKIP = ['FLOWCELL', 'POOL']
 
 class DeliveryWorkflow(object):
     def __init__(self, args=None, logger=None):
@@ -67,7 +67,7 @@ class DeliveryWorkflow(object):
 
     def __fs2fs_carrier(self, ipath, opath):
         bids = [_ for _ in self.batch_info.keys() if self.batch_info[_].get(
-            'type') in ['SAMPLE-IN-FLOWCELL']]
+            'type') not in SAMPLE_TYPES_TOSKIP]
         self.logger.info('Looking for files related to {} Bika ids'.format(
             len(bids)))
         self.logger.info('Starting from {}'.format(ipath))
