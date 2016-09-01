@@ -60,10 +60,10 @@ class DeliveryWorkflow(object):
         self.output_path = output_path
 
         inventory = args.inventory if args.inventory else None
-        self.inventory = os.path.expanduser(inventory)
+        self.inventory = inventory
 
         playbook_path = args.playbook_path if args.playbook_path else None
-        self.playbook_path = os.path.expanduser(playbook_path)
+        self.playbook_path = playbook_path
 
     def __fs2fs_carrier(self, ipath, opath):
         bids = [_ for _ in self.batch_info.keys() if self.batch_info[_].get(
