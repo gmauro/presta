@@ -60,10 +60,10 @@ class DeliveryWorkflow(object):
         self.output_path = output_path
 
         inventory = args.inventory if args.inventory else None
-        self.inventory = inventory
+        self.inventory = os.path.expanduser(inventory)
 
         playbook_path = args.playbook_path if args.playbook_path else None
-        self.playbook_path = playbook_path
+        self.playbook_path = os.path.expanduser(playbook_path)
 
     def __fs2fs_carrier(self, ipath, opath):
         bids = [_ for _ in self.batch_info.keys() if self.batch_info[_].get(
@@ -184,7 +184,7 @@ class DeliveryWorkflow(object):
                 playbook_path = self.playbook_path
             else:
                 io_conf = self.conf.get_io_section()
-                playbook_path = io_conf.get('playbooks_path')
+                playbook_path = os.path.expanduser(io_conf.get('playbooks_path'))
             playbook = os.path.join(playbook_path, playbook_label)
             path_exists(playbook, self.logger)
 
@@ -193,12 +193,13 @@ class DeliveryWorkflow(object):
                 inventory = self.inventory
             else:
                 io_conf = self.conf.get_io_section()
-                inventory = os.path.join(io_conf.get('playbooks_path'),
+                inventory_path = os.path.expanduser(io_conf.get('playbooks_path'))
+                inventory = os.path.join(inventory_path,
                                          inventory_label)
             path_exists(inventory, self.logger)
 
-            results = self.__execute_playbook(os.path.expanduser(playbook),
-                                              os.path.expanduser(inventory),
+            results = self.__execute_playbook(playbook,
+                                              inventory,
                                               random_user,
                                               random_clear_text_password)
             self.logger.info('Playbook result: {}'.format(results))
