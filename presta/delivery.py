@@ -127,6 +127,7 @@ class DeliveryWorkflow(object):
                                          'sftp_extra_args', 'scp_extra_args',
                                          'become', 'become_method',
                                          'become_user', 'verbosity', 'check'])
+
         options = Options(listtags=False, listtasks=False, listhosts=False,
                           syntax=False, connection='ssh', module_path=None,
                           forks=1, remote_user=None,
@@ -196,7 +197,8 @@ class DeliveryWorkflow(object):
                                          inventory_label)
             path_exists(inventory, self.logger)
 
-            results = self.__execute_playbook(playbook, inventory,
+            results = self.__execute_playbook(os.path.expanduser(playbook),
+                                              os.path.expanduser(inventory),
                                               random_user,
                                               random_clear_text_password)
             self.logger.info('Playbook result: {}'.format(results))
