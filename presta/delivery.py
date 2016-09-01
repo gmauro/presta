@@ -83,9 +83,11 @@ class DeliveryWorkflow(object):
                 for f in datasets_info[bid]:
                     src = f.get('filepath')
                     read = f.get('read_label')
+                    lane = f.get('lane')
                     ext = f.get('file_ext')
                     sample_label = self.batch_info[bid].get('client_sample_id')
                     sample_label = '_'.join(
+                        [sample_label.replace(' ', '_'), lane, read]) if lane else '_'.join(
                         [sample_label.replace(' ', '_'), read])
                     sample_label = '.'.join([sample_label, ext])
                     dst = os.path.join(opath, self.batch_id, sample_label)
