@@ -33,7 +33,8 @@ class DatasetsManager(object):
                              'filepath': path,
                              'file_ext': file_ext,
                              '_id': _id,
-                             'read_label': fname.split('_')[2],
+                             'lane': fname.split('_')[2] if fname.split('_')[2].startswith('L') else None,
+                             'read_label': fname.split('_')[2] if fname.split('_')[2].startswith('R') else fname.split('_')[3],
                              }
                 if _id not in results:
                     results[_id] = []

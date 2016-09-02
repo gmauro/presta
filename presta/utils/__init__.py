@@ -113,8 +113,9 @@ def path_exists(path, logger, force=True):
             sys.exit()
         return False
 
-    return True if os.path.exists(path) else file_missing(path, logger,
-                                                          force)
+    return True if os.path.exists(os.path.expanduser(path)) else file_missing(path,
+                                                                              logger,
+                                                                              force)
 
 
 def paths_setup(logger, cf_from_cli=None):

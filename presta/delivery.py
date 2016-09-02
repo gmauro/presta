@@ -83,9 +83,11 @@ class DeliveryWorkflow(object):
                 for f in datasets_info[bid]:
                     src = f.get('filepath')
                     read = f.get('read_label')
+                    lane = f.get('lane')
                     ext = f.get('file_ext')
                     sample_label = self.batch_info[bid].get('client_sample_id')
                     sample_label = '_'.join(
+                        [sample_label.replace(' ', '_'), lane, read]) if lane else '_'.join(
                         [sample_label.replace(' ', '_'), read])
                     sample_label = '.'.join([sample_label, ext])
                     dst = os.path.join(opath, self.batch_id, sample_label)
@@ -125,6 +127,7 @@ class DeliveryWorkflow(object):
                                          'sftp_extra_args', 'scp_extra_args',
                                          'become', 'become_method',
                                          'become_user', 'verbosity', 'check'])
+
         options = Options(listtags=False, listtasks=False, listhosts=False,
                           syntax=False, connection='ssh', module_path=None,
                           forks=1, remote_user=None,
@@ -181,7 +184,7 @@ class DeliveryWorkflow(object):
                 playbook_path = self.playbook_path
             else:
                 io_conf = self.conf.get_io_section()
-                playbook_path = io_conf.get('playbooks_path')
+                playbook_path = os.path.expanduser(io_conf.get('playbooks_path'))
             playbook = os.path.join(playbook_path, playbook_label)
             path_exists(playbook, self.logger)
 
@@ -190,11 +193,13 @@ class DeliveryWorkflow(object):
                 inventory = self.inventory
             else:
                 io_conf = self.conf.get_io_section()
-                inventory = os.path.join(io_conf.get('playbooks_path'),
+                inventory_path = os.path.expanduser(io_conf.get('playbooks_path'))
+                inventory = os.path.join(inventory_path,
                                          inventory_label)
             path_exists(inventory, self.logger)
 
-            results = self.__execute_playbook(playbook, inventory,
+            results = self.__execute_playbook(playbook,
+                                              inventory,
                                               random_user,
                                               random_clear_text_password)
             self.logger.info('Playbook result: {}'.format(results))
