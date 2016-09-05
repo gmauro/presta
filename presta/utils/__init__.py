@@ -12,6 +12,8 @@ from alta import ConfigurationFromYamlFile
 from pkg_resources import resource_filename
 
 
+SAMPLES_WITHOUT_BARCODES = [2, 8]
+
 class IEMSampleSheetReader(csv.DictReader):
     """
     Illumina Experimental Manager SampleSheet reader.
@@ -52,6 +54,7 @@ class IEMSampleSheetReader(csv.DictReader):
         def pstdev(data):
             """Calculates the population standard deviation."""
             n = len(data)
+
             if n < 2:
                 raise ValueError('variance requires at least two data points')
             ss = _ss(data)
@@ -60,10 +63,14 @@ class IEMSampleSheetReader(csv.DictReader):
 
         lengths = []
         to_be_verified = ['index']
+
         for row in self.data:
             for f in self.data.fieldnames:
                 if f in to_be_verified:
                     lengths.append(len(row[f]))
+
+        if len(lengths) == 0 and len(self.data) in SAMPLES_WITHOUT_BARCODES:
+            return True
 
         return True if pstdev(lengths) == float(0) else False
 

@@ -51,8 +51,9 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task2 = samplesheet_ready.si(ir_conf, ipath)
 
     pipeline = group(task0, task1, task2)()
-    while pipeline.waiting():
-        pass
+
+    # while pipeline.waiting():
+    #     pass
     return pipeline.join()
 
 
