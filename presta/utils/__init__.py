@@ -60,6 +60,7 @@ class IEMSampleSheetReader(csv.DictReader):
 
         lengths = []
         to_be_verified = ['index']
+        raise ValueError(data)
         for row in self.data:
             for f in self.data.fieldnames:
                 if f in to_be_verified:
