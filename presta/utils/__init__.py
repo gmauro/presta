@@ -57,7 +57,7 @@ class IEMSampleSheetReader(csv.DictReader):
                 return 0
 
             if n < 2:
-                raise ValueError('variance requires at least two data points')
+                raise ValueError('##{}## variance requires at least two data points'.format(len(data)))
             ss = _ss(data)
             pvar = ss/n # the population variance
             return pvar**0.5
