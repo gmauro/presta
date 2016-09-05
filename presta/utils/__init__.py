@@ -12,6 +12,8 @@ from alta import ConfigurationFromYamlFile
 from pkg_resources import resource_filename
 
 
+SAMPLES_WITHOUT_BARCODES = [2, 8]
+
 class IEMSampleSheetReader(csv.DictReader):
     """
     Illumina Experimental Manager SampleSheet reader.
@@ -67,7 +69,7 @@ class IEMSampleSheetReader(csv.DictReader):
                 if f in to_be_verified:
                     lengths.append(len(row[f]))
 
-        if len(lengths) == 0:
+        if len(lengths) == 0 and len(lengths) in SAMPLES_WITHOUT_BARCODES:
             return True
 
         return True if pstdev(lengths) == float(0) else False
