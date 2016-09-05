@@ -4,7 +4,6 @@ from . import app
 from alta.objectstore import build_object_store
 from alta.utils import ensure_dir
 from celery import group
-from celery import task
 import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
@@ -52,7 +51,8 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task2 = samplesheet_ready.si(ir_conf, ipath)
 
     #pipeline = group(task0, task1, task2)()
-    pipeline = task(task0)
+    pipeline = group(task0, task0)()
+
     while pipeline.waiting():
         pass
     return pipeline.join()
