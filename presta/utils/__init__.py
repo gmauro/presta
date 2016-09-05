@@ -67,7 +67,10 @@ class IEMSampleSheetReader(csv.DictReader):
                 if f in to_be_verified:
                     lengths.append(len(row[f]))
 
-        return True if len(lengths) == 0 or stdev(lengths) == float(0) else False
+        if len(lengths) == 0:
+            return True
+
+        return True if pstdev(lengths) == float(0) else False
 
     def get_body(self, label='Sample_Name', new_value='', replace=True):
         def sanitize(mystr):
