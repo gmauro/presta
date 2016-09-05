@@ -69,7 +69,7 @@ class IEMSampleSheetReader(csv.DictReader):
                 if f in to_be_verified:
                     lengths.append(len(row[f]))
 
-        if len(lengths) == 0 and len(lengths) in SAMPLES_WITHOUT_BARCODES:
+        if len(lengths) == 0 and len(self.data) in SAMPLES_WITHOUT_BARCODES:
             return True
 
         return True if pstdev(lengths) == float(0) else False
