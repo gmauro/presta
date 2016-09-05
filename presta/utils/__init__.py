@@ -52,6 +52,10 @@ class IEMSampleSheetReader(csv.DictReader):
         def pstdev(data):
             """Calculates the population standard deviation."""
             n = len(data)
+
+            if n == 0:
+                return 0
+
             if n < 2:
                 raise ValueError('variance requires at least two data points')
             ss = _ss(data)
@@ -60,11 +64,11 @@ class IEMSampleSheetReader(csv.DictReader):
 
         lengths = []
         to_be_verified = ['index']
-        raise ValueError(self.data)
+
         for row in self.data:
             for f in self.data.fieldnames:
                 if f in to_be_verified:
-                    print "DEBUG: {} -> {}".format(row[f],len(row[f]))
+
                     lengths.append(len(row[f]))
 
         return True if pstdev(lengths) == float(0) else False
