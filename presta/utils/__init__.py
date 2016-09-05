@@ -63,7 +63,7 @@ class IEMSampleSheetReader(csv.DictReader):
         for row in self.data:
             for f in self.data.fieldnames:
                 if f in to_be_verified:
-                    print row[f]
+                    print "DEBUG: {} -> {}".format(row[f],len(row[f]))
                     lengths.append(len(row[f]))
 
         return True if pstdev(lengths) == float(0) else False
