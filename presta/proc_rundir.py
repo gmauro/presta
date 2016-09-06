@@ -73,7 +73,7 @@ class PreprocessingWorkflow(object):
             ir_conf=self.conf.get_irods_section())
 
         check = rd_status_checks[0] and rd_status_checks[1] and \
-                rd_status_checks[2]
+                rd_status_checks[2][0] and rd_status_checks[2][1]
 
         self.logger.info('status: 1={} | 2={} | 3.0={} | 3.1={}'.format(str(rd_status_checks[0]),
                                                                         str(rd_status_checks[1]),
