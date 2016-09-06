@@ -178,6 +178,7 @@ def copy_samplesheet_from_irods(**kwargs):
 
     return samplesheet_file_path
 
+
 @app.task(name='presta.app.tasks.copy_run_info_from_irods',
           ignore_result=True)
 def copy_run_info_from_irods(**kwargs):
@@ -200,6 +201,7 @@ def copy_run_info_from_irods(**kwargs):
     ir.get_object(ipath, dest_path=run_info_file_path)
 
     return run_info_file_path
+
 
 @app.task(name='presta.app.tasks.copy_run_parameters_from_irods',
           ignore_result=True)

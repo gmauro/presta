@@ -47,7 +47,7 @@ class PreprocessingWorkflow(object):
         self.run_info = run_info
 
         run_parameters = {'basepath': os.path.join(cpath),
-                          'filename': 'RunInfo.xml'}
+                          'filename': 'runParameters.xml'}
         run_parameters['file_path'] = os.path.join(run_parameters['basepath'],
                                                    run_parameters['filename'])
         self.run_parameters = run_parameters
@@ -98,7 +98,11 @@ class PreprocessingWorkflow(object):
         self.logger.info('running path {}'.format(self.rd['rpath']))
         self.logger.info('completed path {}'.format(self.rd['cpath']))
         self.logger.info('archive path {}'.format(self.rd['apath']))
+        self.logger.info('samplesheet path {}'.format(self.samplesheet['file_path']))
+        self.logger.info('run info path {}'.format(self.run_info['file_path']))
+        self.logger.info('run parameters path {}'.format(self.run_parameters['file_path']))
 
+        sys.exit()
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
 
