@@ -109,19 +109,19 @@ class PreprocessingWorkflow(object):
 
         samplesheet_task = chain(
 
-            copy_run_info_from_irods.s(conf=self.conf.get_irods_section(),
+            copy_run_info_from_irods.si(conf=self.conf.get_irods_section(),
                                         run_info_path=self.run_info['file_path'],
                                         rd_label=self.rd['label']),
 
-            copy_run_parameters_from_irods.s(conf=self.conf.get_irods_section(),
+            copy_run_parameters_from_irods.si(conf=self.conf.get_irods_section(),
                                               run_parameters_path=self.run_parameters['file_path'],
                                               rd_label=self.rd['label']),
 
-            copy_samplesheet_from_irods.s(conf=self.conf.get_irods_section(),
+            copy_samplesheet_from_irods.si(conf=self.conf.get_irods_section(),
                                            ssht_path=self.samplesheet['file_path'],
                                            rd_label=self.rd['label']),
 
-            replace_values_into_samplesheet.s()
+            #replace_values_into_samplesheet.s()
         )
 
         qc_task = chain(rd_collect_fastq.si(ds_path=self.ds['path']),
