@@ -124,8 +124,9 @@ def make_parser(parser):
     parser.add_argument('--rd_path', metavar="PATH",
                         help="rundir path", required=True)
     parser.add_argument('--output', type=str, help='output path', default='')
-    parser.add_argument('--overwrite-samplesheet', type=str, help='overwrite the samplesheet if already present '
-                                                                  'into the filesystem')
+    parser.add_argument('--overwrite-samplesheet', action='store_true',
+                        help='overwrite the samplesheet '
+                             'if already present into the filesystem')
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
     parser.add_argument('--no_lane_splitting', action='store_true',
                         help='Do not split fastq by lane.')
