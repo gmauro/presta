@@ -75,6 +75,7 @@ class PreprocessingWorkflow(object):
         check = rd_status_checks[0] and rd_status_checks[1] and \
                 rd_status_checks[2]
 
+        self.logger.info('INFO {}'.format(str(rd_status_checks[1])))
         if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
                 self.rd['label']))
