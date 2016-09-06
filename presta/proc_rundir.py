@@ -5,7 +5,8 @@ from alta.utils import ensure_dir
 from presta.utils import path_exists, get_conf
 from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
      rd_ready_to_be_preprocessed, copy_samplesheet_from_irods, \
-     replace_values_into_samplesheet, copy_run_info_from_irods, copy_run_parameters_from_irods
+     replace_values_into_samplesheet, \
+     copy_run_info_from_irods, copy_run_parameters_from_irods
 from celery import chain
 
 
@@ -102,14 +103,11 @@ class PreprocessingWorkflow(object):
         self.logger.info('run info path {}'.format(self.run_info['file_path']))
         self.logger.info('run parameters path {}'.format(self.run_parameters['file_path']))
 
-        sys.exit()
+
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
 
         samplesheet_task = chain(
-            copy_samplesheet_from_irods.si(conf=self.conf.get_irods_section(),
-                                           ssht_path=self.samplesheet['file_path'],
-                                           rd_label=self.rd['label']),
 
             copy_run_info_from_irods.si(conf=self.conf.get_irods_section(),
                                         run_info_path=self.run_info['file_path'],
@@ -118,6 +116,10 @@ class PreprocessingWorkflow(object):
             copy_run_parameters_from_irods.si(conf=self.conf.get_irods_section(),
                                               run_parameters_path=self.run_parameters['file_path'],
                                               rd_label=self.rd['label']),
+
+            copy_samplesheet_from_irods.si(conf=self.conf.get_irods_section(),
+                                           ssht_path=self.samplesheet['file_path'],
+                                           rd_label=self.rd['label']),
 
             replace_values_into_samplesheet.s()
         )
