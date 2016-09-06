@@ -5,7 +5,7 @@ from alta.utils import ensure_dir
 from presta.utils import path_exists, get_conf
 from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
      rd_ready_to_be_preprocessed, copy_samplesheet_from_irods, \
-     replace_values_into_samplesheet, copy_run_info_from_irods
+     replace_values_into_samplesheet, copy_run_info_from_irods, copy_run_parameters_from_irods
 from celery import chain
 
 
