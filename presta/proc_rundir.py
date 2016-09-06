@@ -5,7 +5,7 @@ from alta.utils import ensure_dir
 from presta.utils import path_exists, get_conf
 from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
      rd_ready_to_be_preprocessed, copy_samplesheet_from_irods, \
-     replace_values_into_samplesheet
+     replace_values_into_samplesheet, copy_run_info_from_irods
 from celery import chain
 
 
@@ -40,6 +40,18 @@ class PreprocessingWorkflow(object):
                                            ssheet['filename'])
         self.samplesheet = ssheet
 
+        run_info = {'basepath': os.path.join(cpath),
+                    'filename': 'RunInfo.xml'}
+        run_info['file_path'] = os.path.join(run_info['basepath'],
+                                             run_info['filename'])
+        self.run_info = run_info
+
+        run_parameters = {'basepath': os.path.join(cpath),
+                          'filename': 'RunInfo.xml'}
+        run_parameters['file_path'] = os.path.join(run_parameters['basepath'],
+                                                   run_parameters['filename'])
+        self.run_parameters = run_parameters
+
         do_conf = conf.get_section('data_ownership')
         self.user = do_conf.get('user')
         self.group = do_conf.get('group')
@@ -73,12 +85,10 @@ class PreprocessingWorkflow(object):
             ir_conf=self.conf.get_irods_section())
 
         check = rd_status_checks[0] and rd_status_checks[1] and \
-                rd_status_checks[2][0] and rd_status_checks[2][1]
+                rd_status_checks[2][0]
 
-        self.logger.info('status: 1={} | 2={} | 3.0={} | 3.1={}'.format(str(rd_status_checks[0]),
-                                                                        str(rd_status_checks[1]),
-                                                                        str(rd_status_checks[2][0]),
-                                                                        str(rd_status_checks[2][1])))
+        check_sanitize_barcodes = rd_status_checks[2][1]
+
         if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
                 self.rd['label']))
@@ -88,7 +98,7 @@ class PreprocessingWorkflow(object):
         self.logger.info('running path {}'.format(self.rd['rpath']))
         self.logger.info('completed path {}'.format(self.rd['cpath']))
         self.logger.info('archive path {}'.format(self.rd['apath']))
-        sys.exit()
+
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
 
@@ -96,6 +106,15 @@ class PreprocessingWorkflow(object):
             copy_samplesheet_from_irods.si(conf=self.conf.get_irods_section(),
                                            ssht_path=self.samplesheet['file_path'],
                                            rd_label=self.rd['label']),
+
+            copy_run_info_from_irods.si(conf=self.conf.get_irods_section(),
+                                        run_info_path=self.run_info['file_path'],
+                                        rd_label=self.rd['label']),
+
+            copy_run_parameters_from_irods.si(conf=self.conf.get_irods_section(),
+                                              run_info_path=self.run_parameters['file_path'],
+                                              rd_label=self.rd['label']),
+
             replace_values_into_samplesheet.s()
         )
 
@@ -105,18 +124,23 @@ class PreprocessingWorkflow(object):
                                     queue_spec=self.queues_conf.get('low'))
                         )
 
-        # full pre-processing sequencing rundir pipeline
         pipeline = chain(
             samplesheet_task,
-            move.si(self.rd['rpath'], self.rd['apath']),
-            bcl2fastq.si(rd_path=self.rd['apath'],
-                         ds_path=self.ds['path'],
-                         ssht_path=self.samplesheet['file_path'],
-                         no_lane_splitting=self.no_lane_splitting,
-                         barcode_mismatches = self.barcode_mismatches,
-                         batch_queuing=self.batch_queuing,
-                         queue_spec=self.queues_conf.get('low')),
-            qc_task).delay()
+            move.si(self.rd['rpath'], self.rd['apath'])
+        ).delay()
+
+        # full pre-processing sequencing rundir pipeline
+        # pipeline = chain(
+        #     samplesheet_task,
+        #     move.si(self.rd['rpath'], self.rd['apath']),
+        #     bcl2fastq.si(rd_path=self.rd['apath'],
+        #                  ds_path=self.ds['path'],
+        #                  ssht_path=self.samplesheet['file_path'],
+        #                  no_lane_splitting=self.no_lane_splitting,
+        #                  barcode_mismatches = self.barcode_mismatches,
+        #                  batch_queuing=self.batch_queuing,
+        #                  queue_spec=self.queues_conf.get('low')),
+        #     qc_task).delay()
 
 
 help_doc = """
