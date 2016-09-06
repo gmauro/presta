@@ -201,7 +201,7 @@ def copy_run_info_from_irods(**kwargs):
 
     return run_info_file_path
 
-@app.task(name='presta.app.tasks.copy_run_paremeters_from_irods',
+@app.task(name='presta.app.tasks.copy_run_parameters_from_irods',
           ignore_result=True)
 def copy_run_parameters_from_irods(**kwargs):
     ir_conf = kwargs.get('conf')

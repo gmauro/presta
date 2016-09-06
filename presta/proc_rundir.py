@@ -112,7 +112,7 @@ class PreprocessingWorkflow(object):
                                         rd_label=self.rd['label']),
 
             copy_run_parameters_from_irods.si(conf=self.conf.get_irods_section(),
-                                              run_info_path=self.run_parameters['file_path'],
+                                              run_parameters_path=self.run_parameters['file_path'],
                                               rd_label=self.rd['label']),
 
             replace_values_into_samplesheet.s()
