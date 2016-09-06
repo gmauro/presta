@@ -74,7 +74,7 @@ class PreprocessingWorkflow(object):
 
         check = rd_status_checks[0] and rd_status_checks[1] and \
                 rd_status_checks[2]
-        self.logger.debug(rd_status_checks)
+
         if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
                 self.rd['label']))
@@ -84,7 +84,7 @@ class PreprocessingWorkflow(object):
         self.logger.info('running path {}'.format(self.rd['rpath']))
         self.logger.info('completed path {}'.format(self.rd['cpath']))
         self.logger.info('archive path {}'.format(self.rd['apath']))
-
+        sys.exit()
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
 
@@ -124,7 +124,7 @@ def make_parser(parser):
     parser.add_argument('--rd_path', metavar="PATH",
                         help="rundir path", required=True)
     parser.add_argument('--output', type=str, help='output path', default='')
-    parser.add_argument('--overwrite-samplesheet', action='store_true',
+    parser.add_argument('--overwrite_samplesheet', action='store_true',
                         help='overwrite the samplesheet '
                              'if already present into the filesystem')
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
