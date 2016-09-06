@@ -48,6 +48,8 @@ class PreprocessingWorkflow(object):
 
         self.barcode_mismatches = args.barcode_mismatches
 
+        self.overwrite_samplesheet = args.overwrite_samplesheet
+
         self.batch_queuing = args.batch_queuing
         self.queues_conf = conf.get_section('queues')
 
@@ -72,6 +74,7 @@ class PreprocessingWorkflow(object):
 
         check = rd_status_checks[0] and rd_status_checks[1] and \
                 rd_status_checks[2]
+        self.logger.debug(rd_status_checks)
         if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
                 self.rd['label']))
@@ -121,7 +124,8 @@ def make_parser(parser):
     parser.add_argument('--rd_path', metavar="PATH",
                         help="rundir path", required=True)
     parser.add_argument('--output', type=str, help='output path', default='')
-    #parser.add_argument('--samplesheet', type=str, help='samplesheet path')
+    parser.add_argument('--overwrite-samplesheet', type=str, help='overwrite the samplesheet if already present '
+                                                                  'into the filesystem')
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
     parser.add_argument('--no_lane_splitting', action='store_true',
                         help='Do not split fastq by lane.')
