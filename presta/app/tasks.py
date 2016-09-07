@@ -232,12 +232,13 @@ def copy_run_parameters_from_irods(**kwargs):
 def replace_values_into_samplesheet(**kwargs):
     samplesheet_file_path = kwargs.get('ssht_path')
     run_info_file_path = kwargs.get('run_info_path')
+    trim_barcodes = kwargs.get('trim_barcodes')
 
     with open(samplesheet_file_path, 'r') as f:
         samplesheet = IEMSampleSheetReader(f)
 
     with open(samplesheet_file_path, 'w') as f:
-        for row in samplesheet.get_body(replace=True, trim=True):
+        for row in samplesheet.get_body(replace=True, trim=trim_barcodes):
             f.write(row)
 
 
