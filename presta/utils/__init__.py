@@ -89,7 +89,7 @@ class IEMSampleSheetReader(csv.DictReader):
             in accordance with Illumina's documentation
             bcl2fastq2 Conversion Software v2.17 Guide
             """
-            return barcode[:length]
+            return barcode[:6]
 
         body = []
         for i in self.header:
@@ -107,7 +107,7 @@ class IEMSampleSheetReader(csv.DictReader):
                 else:
                     if f in to_be_sanitized:
                         body.append(sanitize(row[f]))
-                    elif trim_barcode and f in to_be_trimmed and len(row[f]) > 0:
+                    elif trim_barcode and f in to_be_trimmed:
                         body.append(trim(row[f], barcode_length))
                     else:
                         body.append(row[f])

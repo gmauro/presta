@@ -104,7 +104,6 @@ class PreprocessingWorkflow(object):
         self.logger.info('run info path {}'.format(self.run_info['file_path']))
         self.logger.info('run parameters path {}'.format(self.run_parameters['file_path']))
 
-
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
 
