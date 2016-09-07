@@ -39,9 +39,9 @@ class IEMRunInfoReader:
         indexed_reads = self.get_indexed_reads()
         return dict(
             index=next((item['NumCycles'] for item in indexed_reads
-                        if item["IsIndexedRead"] == "Y" and item['Number'] == "2"),100),
+                        if item["IsIndexedRead"] == "Y" and item['Number'] == "2"), None),
             index1=next((item['NumCycles'] for item in indexed_reads
-                        if item["IsIndexedRead"] == "Y" and item['Number'] != "2"),100))
+                        if item["IsIndexedRead"] == "Y" and item['Number'] != "2"), None))
 
 
 class IEMSampleSheetReader(csv.DictReader):
@@ -104,7 +104,8 @@ class IEMSampleSheetReader(csv.DictReader):
 
         return True if pstdev(lengths) == float(0) else False
 
-    def get_body(self, label='Sample_Name', new_value='', replace=True, trim=True, barcodes_length=dict(index=6, index1=6)):
+    def get_body(self, label='Sample_Name', new_value='', replace=True,
+                 trim=True, barcodes_length=dict(index=None, index1=None)):
         def sanitize(mystr):
             """
             Sanitize string in accordance with Illumina's documentation
@@ -112,6 +113,11 @@ class IEMSampleSheetReader(csv.DictReader):
             """
             retainlist="_-"
             return re.sub(r'[^\w'+retainlist+']', '_', mystr)
+
+        def cut(barcode, lenght):
+            if isinstance(lenght, basestring):
+                lenght = int(lenght)
+            return barcode[:lenght]
 
         body = []
         for i in self.header:
@@ -127,7 +133,7 @@ class IEMSampleSheetReader(csv.DictReader):
                 if replace and f == label:
                     body.append(new_value)
                 elif trim and f in to_be_trimmed:
-                    body.append(row[f][:barcodes_length[f]])
+                    body.append(cut(row[f],barcodes_length[f]))
                 else:
                     if f in to_be_sanitized:
                         body.append(sanitize(row[f]))
