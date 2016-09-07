@@ -83,14 +83,6 @@ class IEMSampleSheetReader(csv.DictReader):
             retainlist="_-"
             return re.sub(r'[^\w'+retainlist+']', '_', mystr)
 
-        def trim(barcode, length):
-            """
-            Trim barcodes when don't have the same size
-            in accordance with Illumina's documentation
-            bcl2fastq2 Conversion Software v2.17 Guide
-            """
-            return barcode[:6]
-
         body = []
         for i in self.header:
             body.append(i)
