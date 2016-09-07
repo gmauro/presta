@@ -233,7 +233,7 @@ def replace_values_into_samplesheet(file_path):
         samplesheet = IEMSampleSheetReader(f)
 
     with open(file_path, 'w') as f:
-        for row in samplesheet.get_body(replace=True):
+        for row in samplesheet.get_body(replace=True, trim_barcode=True, barcode_length=6):
             f.write(row)
 
 
