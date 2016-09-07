@@ -116,7 +116,7 @@ class IEMSampleSheetReader(csv.DictReader):
 
         def cut(barcode, lenght):
             if isinstance(lenght, basestring):
-                lenght = int(lenght)
+                lenght = int(lenght)-1
             return barcode[:lenght]
 
         body = []
