@@ -121,7 +121,7 @@ class PreprocessingWorkflow(object):
                                            ssht_path=self.samplesheet['file_path'],
                                            rd_label=self.rd['label']),
 
-            replace_values_into_samplesheet.si(),
+            replace_values_into_samplesheet.si(self.samplesheet['file_path']),
 
         )
 
