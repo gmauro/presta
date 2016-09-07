@@ -7,6 +7,7 @@ from celery import group
 import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
+from presta.utils import IEMRunInfoReader
 from pwd import getpwuid
 import errno
 import os
@@ -230,6 +231,12 @@ def copy_run_parameters_from_irods(**kwargs):
 @app.task(name='presta.app.tasks.replace_values_into_samplesheet',
           ignore_result=True)
 def replace_values_into_samplesheet(**kwargs):
+
+    def get_barcodes_length(run_info_file_path):
+        with open(run_info_file_path, 'r') as r:
+            run_info_file = IEMRunInfoReader(r)
+        return run_info_file.get_barcodes_length()
+
     samplesheet_file_path = kwargs.get('ssht_path')
     run_info_file_path = kwargs.get('run_info_path')
     trim_barcodes = kwargs.get('trim_barcodes')
@@ -238,7 +245,9 @@ def replace_values_into_samplesheet(**kwargs):
         samplesheet = IEMSampleSheetReader(f)
 
     with open(samplesheet_file_path, 'w') as f:
-        for row in samplesheet.get_body(replace=True, trim=trim_barcodes):
+        for row in samplesheet.get_body(replace=True,
+                                        trim=trim_barcodes,
+                                        barcodes_length=get_barcodes_length(run_info_file_path)):
             f.write(row)
 
 

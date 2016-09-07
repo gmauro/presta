@@ -7,12 +7,42 @@ import os
 import re
 import string
 import sys
+import xml.etree.ElementTree as ET
 
 from alta import ConfigurationFromYamlFile
 from pkg_resources import resource_filename
 
 
 SAMPLES_WITHOUT_BARCODES = [2, 8]
+
+class IEMRunInfoReader(ET):
+    """
+    Illumina Experimental Manager RunInfo xml reader.
+    """
+
+    def __init__(self, f):
+        tree = ET.parse('country_data.xml')
+        root = tree.getroot()
+
+        self.data = root
+
+    def get_reads(self):
+        root = self.data
+        reads = [r.attrib for r in root.iter('Read')]
+        return reads
+
+    def get_indexed_reads(self):
+        reads = self.get_reads()
+        return filter(lambda item: item["IsIndexedRead"] == "Y", reads)
+
+    def get_barcodes_length(self):
+        indexed_reads = self.get_indexed_reads()
+        return dict(
+            index=next((item['NumCycles'] for item in indexed_reads
+                        if item["IsIndexedRead"] == "Y" and item['Number'] == "2"),100),
+            index1=next((item['NumCycles'] for item in indexed_reads
+                        if item["IsIndexedRead"] == "Y" and item['Number'] != "2"),100))
+
 
 class IEMSampleSheetReader(csv.DictReader):
     """
@@ -74,7 +104,7 @@ class IEMSampleSheetReader(csv.DictReader):
 
         return True if pstdev(lengths) == float(0) else False
 
-    def get_body(self, label='Sample_Name', new_value='', replace=True, trim=True, barcode_length=6):
+    def get_body(self, label='Sample_Name', new_value='', replace=True, trim=True, barcodes_length=dict(index=6, index1=6)):
         def sanitize(mystr):
             """
             Sanitize string in accordance with Illumina's documentation
@@ -97,7 +127,7 @@ class IEMSampleSheetReader(csv.DictReader):
                 if replace and f == label:
                     body.append(new_value)
                 elif trim and f in to_be_trimmed:
-                    body.append(row[f][:6])
+                    body.append(row[f][:barcodes_length[f]])
                 else:
                     if f in to_be_sanitized:
                         body.append(sanitize(row[f]))
