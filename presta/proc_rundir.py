@@ -6,7 +6,7 @@ from presta.utils import path_exists, get_conf
 from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
     rd_ready_to_be_preprocessed, \
     copy_samplesheet_from_irods, copy_run_info_from_irods, copy_run_parameters_from_irods, \
-    replace_values_into_samplesheet, trim_barcodes_into_samplesheet
+    replace_values_into_samplesheet
 from celery import chain
 
 
@@ -121,11 +121,8 @@ class PreprocessingWorkflow(object):
                                            ssht_path=self.samplesheet['file_path'],
                                            rd_label=self.rd['label']),
 
-            replace_values_into_samplesheet.si(self.samplesheet['file_path']),
-
-            trim_barcodes_into_samplesheet.si(ssht_path=self.samplesheet['file_path'],
-                                              run_info_path=self.run_info['file_path']),
-
+            replace_values_into_samplesheet.si(ssht_path=self.samplesheet['file_path'],
+                                               run_info_path=self.run_info['file_path']),
 
         )
 

@@ -229,17 +229,7 @@ def copy_run_parameters_from_irods(**kwargs):
 
 @app.task(name='presta.app.tasks.replace_values_into_samplesheet',
           ignore_result=True)
-def replace_values_into_samplesheet(file_path):
-    with open(file_path, 'r') as f:
-        samplesheet = IEMSampleSheetReader(f)
-
-    with open(file_path, 'w') as f:
-        for row in samplesheet.get_body(replace=True, trim=False):
-            f.write(row)
-
-@app.task(name='presta.app.tasks.trim_barcodes_into_samplesheet',
-          ignore_result=True)
-def trim_barcodes_into_samplesheet(**kwargs):
+def replace_values_into_samplesheet(**kwargs):
     samplesheet_file_path = kwargs.get('ssht_path')
     run_info_file_path = kwargs.get('run_info_path')
 
@@ -247,8 +237,9 @@ def trim_barcodes_into_samplesheet(**kwargs):
         samplesheet = IEMSampleSheetReader(f)
 
     with open(samplesheet_file_path, 'w') as f:
-        for row in samplesheet.get_body(trim=True, replace=False):
+        for row in samplesheet.get_body(replace=True, trim=True):
             f.write(row)
+
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)
