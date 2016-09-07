@@ -133,23 +133,18 @@ class PreprocessingWorkflow(object):
                                     queue_spec=self.queues_conf.get('low'))
                         )
 
+        # full pre-processing sequencing rundir pipeline
         pipeline = chain(
             samplesheet_task,
-            move.si(self.rd['rpath'], self.rd['apath'])
-        ).delay()
-
-        # full pre-processing sequencing rundir pipeline
-        # pipeline = chain(
-        #     samplesheet_task,
-        #     move.si(self.rd['rpath'], self.rd['apath']),
-        #     bcl2fastq.si(rd_path=self.rd['apath'],
-        #                  ds_path=self.ds['path'],
-        #                  ssht_path=self.samplesheet['file_path'],
-        #                  no_lane_splitting=self.no_lane_splitting,
-        #                  barcode_mismatches = self.barcode_mismatches,
-        #                  batch_queuing=self.batch_queuing,
-        #                  queue_spec=self.queues_conf.get('low')),
-        #     qc_task).delay()
+            move.si(self.rd['rpath'], self.rd['apath']),
+            bcl2fastq.si(rd_path=self.rd['apath'],
+                         ds_path=self.ds['path'],
+                         ssht_path=self.samplesheet['file_path'],
+                         no_lane_splitting=self.no_lane_splitting,
+                         barcode_mismatches = self.barcode_mismatches,
+                         batch_queuing=self.batch_queuing,
+                         queue_spec=self.queues_conf.get('low')),
+            qc_task).delay()
 
 
 help_doc = """
