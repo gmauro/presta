@@ -89,7 +89,7 @@ class PreprocessingWorkflow(object):
         check = rd_status_checks[0] and rd_status_checks[1] and \
                 rd_status_checks[2][0]
 
-        check_barcode_trimming = rd_status_checks[2][1] and not self.no_barcode_trimming
+        check_barcode_trimming = not rd_status_checks[2][1] and not self.no_barcode_trimming
 
         if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
