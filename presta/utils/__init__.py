@@ -15,15 +15,15 @@ from pkg_resources import resource_filename
 
 SAMPLES_WITHOUT_BARCODES = [2, 8]
 
-class IEMRunInfoReader(ET):
+
+class IEMRunInfoReader:
     """
     Illumina Experimental Manager RunInfo xml reader.
     """
 
     def __init__(self, f):
-        tree = ET.parse('country_data.xml')
+        tree = ET.parse(f)
         root = tree.getroot()
-
         self.data = root
 
     def get_reads(self):
