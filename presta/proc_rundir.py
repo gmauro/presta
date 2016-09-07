@@ -162,7 +162,7 @@ def make_parser(parser):
     parser.add_argument('--overwrite_samplesheet', action='store_true',
                         help='Overwrite the samplesheet '
                              'if already present into the filesystem')
-    parser.add_argument('--no_barcode_splitting', action='store_true',
+    parser.add_argument('--no_barcode_trimming', action='store_true',
                         help='Do not trim barcode')
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
     parser.add_argument('--no_lane_splitting', action='store_true',
