@@ -7,6 +7,7 @@ from celery import group
 import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
+from presta.utils import IEMRunInfoReader
 from pwd import getpwuid
 import errno
 import os
@@ -52,8 +53,8 @@ def rd_ready_to_be_preprocessed(**kwargs):
 
     pipeline = group(task0, task1, task2)()
 
-    # while pipeline.waiting():
-    #     pass
+    while pipeline.waiting():
+         pass
     return pipeline.join()
 
 
@@ -179,15 +180,76 @@ def copy_samplesheet_from_irods(**kwargs):
     return samplesheet_file_path
 
 
+@app.task(name='presta.app.tasks.copy_run_info_from_irods',
+          ignore_result=True)
+def copy_run_info_from_irods(**kwargs):
+    ir_conf = kwargs.get('conf')
+    run_info_file_path = kwargs.get('run_info_path')
+    run_info_filename = os.path.basename(run_info_file_path)
+    rundir_label = kwargs.get('rd_label')
+
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+    ipath = os.path.join(ir_conf['runs_collection'],
+                         rundir_label,
+                         run_info_filename)
+    logger.info('Coping RunInfo xml from iRODS {} to FS {}'.format(
+        ipath, run_info_file_path))
+    ir.get_object(ipath, dest_path=run_info_file_path)
+
+    return run_info_file_path
+
+
+@app.task(name='presta.app.tasks.copy_run_parameters_from_irods',
+          ignore_result=True)
+def copy_run_parameters_from_irods(**kwargs):
+    ir_conf = kwargs.get('conf')
+    run_parameters_file_path = kwargs.get('run_parameters_path')
+    run_parameters_filename = os.path.basename(run_parameters_file_path)
+    rundir_label = kwargs.get('rd_label')
+
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+    ipath = os.path.join(ir_conf['runs_collection'],
+                         rundir_label,
+                         run_parameters_filename)
+    logger.info('Coping runParameters xml from iRODS {} to FS {}'.format(
+        ipath, run_parameters_file_path))
+    ir.get_object(ipath, dest_path=run_parameters_file_path)
+
+    return run_parameters_file_path
+
+
 @app.task(name='presta.app.tasks.replace_values_into_samplesheet',
           ignore_result=True)
-def replace_values_into_samplesheet(file_path):
-    with open(file_path, 'r') as f:
+def replace_values_into_samplesheet(**kwargs):
+
+    def get_barcodes_length(run_info_file_path):
+        with open(run_info_file_path, 'r') as r:
+            run_info_file = IEMRunInfoReader(r)
+        return run_info_file.get_barcodes_length()
+
+    samplesheet_file_path = kwargs.get('ssht_path')
+    run_info_file_path = kwargs.get('run_info_path')
+    trim_barcodes = kwargs.get('trim_barcodes')
+
+    with open(samplesheet_file_path, 'r') as f:
         samplesheet = IEMSampleSheetReader(f)
 
-    with open(file_path, 'w') as f:
-        for row in samplesheet.get_body(replace=True):
+    with open(samplesheet_file_path, 'w') as f:
+        for row in samplesheet.get_body(replace=True,
+                                        trim=trim_barcodes,
+                                        barcodes_length=get_barcodes_length(run_info_file_path)):
             f.write(row)
+
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)
