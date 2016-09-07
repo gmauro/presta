@@ -74,7 +74,7 @@ class IEMSampleSheetReader(csv.DictReader):
 
         return True if pstdev(lengths) == float(0) else False
 
-    def get_body(self, label='Sample_Name', new_value='', replace=True, trim_barcode=True, barcode_length=6):
+    def get_body(self, label='Sample_Name', new_value='', replace=True, trim=True, barcode_length=6):
         def sanitize(mystr):
             """
             Sanitize string in accordance with Illumina's documentation
@@ -104,11 +104,11 @@ class IEMSampleSheetReader(csv.DictReader):
             for f in self.data.fieldnames:
                 if replace and f == label:
                     body.append(new_value)
+                elif trim and f in to_be_trimmed:
+                    body.append(row[f][:6])
                 else:
                     if f in to_be_sanitized:
                         body.append(sanitize(row[f]))
-                    elif trim_barcode and f in to_be_trimmed:
-                        body.append(trim(row[f], barcode_length))
                     else:
                         body.append(row[f])
                 body.append(',')
