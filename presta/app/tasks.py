@@ -228,7 +228,7 @@ def copy_run_parameters_from_irods(**kwargs):
 
 @app.task(name='presta.app.tasks.replace_values_into_samplesheet',
           ignore_result=True)
-def replace_values_into_samplesheet(file_path):
+def replace_values_into_samplesheet(file_path, run_info_file_path, trim_barcodes):
     with open(file_path, 'r') as f:
         samplesheet = IEMSampleSheetReader(f)
 
