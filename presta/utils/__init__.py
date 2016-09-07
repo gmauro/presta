@@ -74,7 +74,7 @@ class IEMSampleSheetReader(csv.DictReader):
 
         return True if pstdev(lengths) == float(0) else False
 
-    def get_body(self, label='Sample_Name', new_value='', replace=True):
+    def get_body(self, label='Sample_Name', new_value='', replace=True, trim_barcode=True, barcode_length=6):
         def sanitize(mystr):
             """
             Sanitize string in accordance with Illumina's documentation
@@ -82,6 +82,14 @@ class IEMSampleSheetReader(csv.DictReader):
             """
             retainlist="_-"
             return re.sub(r'[^\w'+retainlist+']', '_', mystr)
+
+        def trim(barcode, length):
+            """
+            Trim barcodes when don't have the same size
+            in accordance with Illumina's documentation
+            bcl2fastq2 Conversion Software v2.17 Guide
+            """
+            return barcode[:length]
 
         body = []
         for i in self.header:
@@ -91,6 +99,7 @@ class IEMSampleSheetReader(csv.DictReader):
         body.append('\n')
 
         to_be_sanitized = ['Sample_Project', 'Sample_Name']
+        to_be_trimmed = ['index', 'index2']
         for row in self.data:
             for f in self.data.fieldnames:
                 if replace and f == label:
@@ -98,6 +107,8 @@ class IEMSampleSheetReader(csv.DictReader):
                 else:
                     if f in to_be_sanitized:
                         body.append(sanitize(row[f]))
+                    elif trim_barcode and f in to_be_trimmed and len(row[f]) > 0:
+                        body.append(trim(row[f], barcode_length))
                     else:
                         body.append(row[f])
                 body.append(',')

@@ -58,6 +58,7 @@ class PreprocessingWorkflow(object):
         self.group = do_conf.get('group')
 
         self.no_lane_splitting = args.no_lane_splitting
+        self.no_barcode_trimming = args.no_barcode_trimming
 
         self.barcode_mismatches = args.barcode_mismatches
 
@@ -88,7 +89,7 @@ class PreprocessingWorkflow(object):
         check = rd_status_checks[0] and rd_status_checks[1] and \
                 rd_status_checks[2][0]
 
-        check_sanitize_barcodes = rd_status_checks[2][1]
+        check_barcode_trimming = rd_status_checks[2][1] and not self.no_barcode_trimming
 
         if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
@@ -159,11 +160,13 @@ def make_parser(parser):
                         help="rundir path", required=True)
     parser.add_argument('--output', type=str, help='output path', default='')
     parser.add_argument('--overwrite_samplesheet', action='store_true',
-                        help='overwrite the samplesheet '
+                        help='Overwrite the samplesheet '
                              'if already present into the filesystem')
+    parser.add_argument('--no_barcode_splitting', action='store_true',
+                        help='Do not trim barcode')
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
     parser.add_argument('--no_lane_splitting', action='store_true',
-                        help='Do not split fastq by lane.')
+                        help='Do not split fastq by lane')
     parser.add_argument("--barcode_mismatches", type=int, choices=[0, 1, 2],
                         default=1, help='Number of allowed mismatches per index')
 
