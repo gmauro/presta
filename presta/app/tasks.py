@@ -50,8 +50,9 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task0 = seq_completed.si(path)
     task1 = check_ownership.si(user=user, group=grp, dir=path)
     task2 = samplesheet_ready.si(ir_conf, ipath)
+    task3 = check_metadata.si(ir_conf, os.path.dirname(ipath))
 
-    pipeline = group(task0, task1, task2)()
+    pipeline = group(task0, task1, task2, task3)()
 
     # while pipeline.waiting():
     #      pass
@@ -75,6 +76,20 @@ def samplesheet_ready(ir_conf, ipath):
         return exists, samplesheet.barcodes_have_the_same_size()
     else:
         return False, False
+
+
+@app.task(name='presta.app.tasks.check_metadata')
+def check_metadata(ir_conf, ipath):
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+
+    exists, iobj = ir.exists(ipath, delivery=True)
+
+    return exists and len(iobj.metadata.tems()) > 0
 
 
 @app.task(name='presta.app.tasks.seq_completed')
@@ -321,7 +336,7 @@ def __copy_file_into_irods(**kwargs):
 
     logger.info('Coping from FS {} to iRODS {}'.format(file_path, irods_path))
 
-    ir.put_object(source_path=file_path, dest_path=irods_path, force=True )
+    ir.put_object(source_path=file_path, dest_path=irods_path, force=True)
 
 
 def runGEJob(jt_attr):
