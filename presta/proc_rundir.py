@@ -5,7 +5,7 @@ from alta.utils import ensure_dir
 from presta.utils import path_exists, get_conf
 from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
     rd_ready_to_be_preprocessed, \
-    copy_samplesheet_from_irods, copy_run_info_from_irods, copy_run_parameters_from_irods, \
+    copy_samplesheet_from_irods, copy_run_info_to_irods, copy_run_parameters_to_irods, \
     replace_values_into_samplesheet
 from celery import chain
 
@@ -41,13 +41,13 @@ class PreprocessingWorkflow(object):
                                            ssheet['filename'])
         self.samplesheet = ssheet
 
-        run_info = {'basepath': os.path.join(cpath),
+        run_info = {'basepath': os.path.join(rpath),
                     'filename': 'RunInfo.xml'}
         run_info['file_path'] = os.path.join(run_info['basepath'],
                                              run_info['filename'])
         self.run_info = run_info
 
-        run_parameters = {'basepath': os.path.join(cpath),
+        run_parameters = {'basepath': os.path.join(rpath),
                           'filename': 'runParameters.xml'}
         run_parameters['file_path'] = os.path.join(run_parameters['basepath'],
                                                    run_parameters['filename'])
@@ -107,15 +107,17 @@ class PreprocessingWorkflow(object):
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
 
+        irods_task = chain(
+            copy_run_info_to_irods.si(conf=self.conf.get_irods_section(),
+                                      run_info_path=self.run_info['file_path'],
+                                      rd_label=self.rd['label']),
+
+            copy_run_parameters_to_irods.si(conf=self.conf.get_irods_section(),
+                                            run_parameters_path=self.run_parameters['file_path'],
+                                            rd_label=self.rd['label']),
+        )
+
         samplesheet_task = chain(
-
-            copy_run_info_from_irods.si(conf=self.conf.get_irods_section(),
-                                        run_info_path=self.run_info['file_path'],
-                                        rd_label=self.rd['label']),
-
-            copy_run_parameters_from_irods.si(conf=self.conf.get_irods_section(),
-                                              run_parameters_path=self.run_parameters['file_path'],
-                                              rd_label=self.rd['label']),
 
             copy_samplesheet_from_irods.si(conf=self.conf.get_irods_section(),
                                            ssht_path=self.samplesheet['file_path'],
@@ -133,18 +135,25 @@ class PreprocessingWorkflow(object):
                                     queue_spec=self.queues_conf.get('low'))
                         )
 
-        # full pre-processing sequencing rundir pipeline
         pipeline = chain(
+            irods_task,
             samplesheet_task,
-            move.si(self.rd['rpath'], self.rd['apath']),
-            bcl2fastq.si(rd_path=self.rd['apath'],
-                         ds_path=self.ds['path'],
-                         ssht_path=self.samplesheet['file_path'],
-                         no_lane_splitting=self.no_lane_splitting,
-                         barcode_mismatches = self.barcode_mismatches,
-                         batch_queuing=self.batch_queuing,
-                         queue_spec=self.queues_conf.get('low')),
-            qc_task).delay()
+            move.si(self.rd['rpath'], self.rd['apath'])
+        ).delay()
+
+        # # full pre-processing sequencing rundir pipeline
+        # pipeline = chain(
+        #     irods_task
+        #     samplesheet_task,
+        #     move.si(self.rd['rpath'], self.rd['apath']),
+        #     bcl2fastq.si(rd_path=self.rd['apath'],
+        #                  ds_path=self.ds['path'],
+        #                  ssht_path=self.samplesheet['file_path'],
+        #                  no_lane_splitting=self.no_lane_splitting,
+        #                  barcode_mismatches = self.barcode_mismatches,
+        #                  batch_queuing=self.batch_queuing,
+        #                  queue_spec=self.queues_conf.get('low')),
+        #     qc_task).delay()
 
 
 help_doc = """

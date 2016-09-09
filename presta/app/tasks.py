@@ -180,50 +180,40 @@ def copy_samplesheet_from_irods(**kwargs):
     return samplesheet_file_path
 
 
-@app.task(name='presta.app.tasks.copy_run_info_from_irods',
+@app.task(name='presta.app.tasks.copy_run_info_to_irods',
           ignore_result=True)
-def copy_run_info_from_irods(**kwargs):
+def copy_run_info_to_irods(**kwargs):
     ir_conf = kwargs.get('conf')
     run_info_file_path = kwargs.get('run_info_path')
     run_info_filename = os.path.basename(run_info_file_path)
     rundir_label = kwargs.get('rd_label')
 
-    ir = build_object_store(store='irods',
-                            host=ir_conf['host'],
-                            port=ir_conf['port'],
-                            user=ir_conf['user'],
-                            password=ir_conf['password'].encode('ascii'),
-                            zone=ir_conf['zone'])
-    ipath = os.path.join(ir_conf['runs_collection'],
-                         rundir_label,
-                         run_info_filename)
-    logger.info('Coping RunInfo xml from iRODS {} to FS {}'.format(
-        ipath, run_info_file_path))
-    ir.get_object(ipath, dest_path=run_info_file_path)
+    irods_path = os.path.join(ir_conf['runs_collection'],
+                              rundir_label,
+                              run_info_filename)
+
+    __copy_file_into_irods(conf=ir_conf,
+                           local_path=run_info_file_path,
+                           irods_path=irods_path)
 
     return run_info_file_path
 
 
-@app.task(name='presta.app.tasks.copy_run_parameters_from_irods',
+@app.task(name='presta.app.tasks.copy_run_parameters_to_irods',
           ignore_result=True)
-def copy_run_parameters_from_irods(**kwargs):
+def copy_run_parameters_to_irods(**kwargs):
     ir_conf = kwargs.get('conf')
     run_parameters_file_path = kwargs.get('run_parameters_path')
     run_parameters_filename = os.path.basename(run_parameters_file_path)
     rundir_label = kwargs.get('rd_label')
 
-    ir = build_object_store(store='irods',
-                            host=ir_conf['host'],
-                            port=ir_conf['port'],
-                            user=ir_conf['user'],
-                            password=ir_conf['password'].encode('ascii'),
-                            zone=ir_conf['zone'])
-    ipath = os.path.join(ir_conf['runs_collection'],
-                         rundir_label,
-                         run_parameters_filename)
-    logger.info('Coping runParameters xml from iRODS {} to FS {}'.format(
-        ipath, run_parameters_file_path))
-    ir.get_object(ipath, dest_path=run_parameters_file_path)
+    irods_path = os.path.join(ir_conf['runs_collection'],
+                              rundir_label,
+                              run_parameters_filename)
+
+    __copy_file_into_irods(conf=ir_conf,
+                           local_path=run_parameters_file_path,
+                           irods_path=irods_path)
 
     return run_parameters_file_path
 
@@ -345,6 +335,23 @@ def fastqc(fq_list, **kwargs):
         output = runJob(cmd_line)
 
     return True if output else False
+
+
+def __copy_file_into_irods(**kwargs):
+    ir_conf = kwargs.get('conf')
+    file_path = kwargs.get('file_path')
+    irods_path = kwargs.get('irods_path')
+
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+
+    logger.info('Coping from FS {} to iRODS {}'.format(file_path, irods_path))
+
+    ir.put_object(source_path=file_path, dest_path=irods_path, force=True )
 
 
 def runGEJob(jt_attr):
