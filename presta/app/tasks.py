@@ -50,7 +50,7 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task0 = seq_completed.si(path)
     task1 = check_ownership.si(user=user, group=grp, dir=path)
     task2 = samplesheet_ready.si(ir_conf, ipath)
-    task3 = check_metadata.si(ir_conf, os.path.dirname(ipath))
+    task3 = check_metadata.si(ir_conf, ipath)
 
     pipeline = group(task0, task1, task2, task3)()
 
