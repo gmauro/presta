@@ -89,7 +89,7 @@ def check_metadata(ir_conf, ipath):
 
     exists, iobj = ir.exists(ipath, delivery=True)
 
-    return exists and len(iobj.metadata.tems()) > 0
+    return exists and len(iobj.metadata.items()) > 0
 
 
 @app.task(name='presta.app.tasks.seq_completed')
