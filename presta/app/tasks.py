@@ -77,35 +77,6 @@ def samplesheet_ready(ir_conf, ipath):
         return False, False
 
 
-# @app.task(name='presta.app.tasks.check_barcodes_size')
-# def check_barcodes_size(ir_conf, ipath):
-#     ir = build_object_store(store='irods',
-#                             host=ir_conf['host'],
-#                             port=ir_conf['port'],
-#                             user=ir_conf['user'],
-#                             password=ir_conf['password'].encode('ascii'),
-#                             zone=ir_conf['zone'])
-#
-#     exists, iobj = ir.exists(ipath, delivery=True)
-#     if iobj:
-#         with iobj.open('r') as f:
-#             samplesheet = IEMSampleSheetReader(f)
-#
-#         return samplesheet.barcodes_have_the_same_size()
-#
-#
-# @app.task(name='presta.app.tasks.iexists')
-# def iexists(ir_conf, ipath):
-#     ir = build_object_store(store='irods',
-#                             host=ir_conf['host'],
-#                             port=ir_conf['port'],
-#                             user=ir_conf['user'],
-#                             password=ir_conf['password'].encode('ascii'),
-#                             zone=ir_conf['zone'])
-#
-#     return ir.exists(ipath)
-
-
 @app.task(name='presta.app.tasks.seq_completed')
 def seq_completed(rd_path):
     illumina_last_file = 'RTAComplete.txt'
@@ -193,7 +164,7 @@ def copy_run_info_to_irods(**kwargs):
                               run_info_filename)
 
     __copy_file_into_irods(conf=ir_conf,
-                           local_path=run_info_file_path,
+                           file_path=run_info_file_path,
                            irods_path=irods_path)
 
     return run_info_file_path
@@ -212,7 +183,7 @@ def copy_run_parameters_to_irods(**kwargs):
                               run_parameters_filename)
 
     __copy_file_into_irods(conf=ir_conf,
-                           local_path=run_parameters_file_path,
+                           file_path=run_parameters_file_path,
                            irods_path=irods_path)
 
     return run_parameters_file_path
@@ -239,7 +210,6 @@ def replace_values_into_samplesheet(**kwargs):
                                         trim=trim_barcodes,
                                         barcodes_length=get_barcodes_length(run_info_file_path)):
             f.write(row)
-
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)
