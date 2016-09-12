@@ -7,41 +7,12 @@ import os
 import re
 import string
 import sys
-import xml.etree.ElementTree as ET
 
 from alta import ConfigurationFromYamlFile
 from pkg_resources import resource_filename
 
 
 SAMPLES_WITHOUT_BARCODES = [2, 8]
-
-
-class IEMRunInfoReader:
-    """
-    Illumina Experimental Manager RunInfo xml reader.
-    """
-
-    def __init__(self, f):
-        tree = ET.parse(f)
-        root = tree.getroot()
-        self.data = root
-
-    def get_reads(self):
-        root = self.data
-        reads = [r.attrib for r in root.iter('Read')]
-        return reads
-
-    def get_indexed_reads(self):
-        reads = self.get_reads()
-        return filter(lambda item: item["IsIndexedRead"] == "Y", reads)
-
-    def get_barcodes_length(self):
-        indexed_reads = self.get_indexed_reads()
-        return dict(
-            index=next((item['NumCycles'] for item in indexed_reads
-                        if item["IsIndexedRead"] == "Y" and item['Number'] == "2"), None),
-            index1=next((item['NumCycles'] for item in indexed_reads
-                        if item["IsIndexedRead"] == "Y" and item['Number'] != "2"), None))
 
 
 class IEMSampleSheetReader(csv.DictReader):

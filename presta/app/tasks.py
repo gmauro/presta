@@ -7,7 +7,6 @@ from celery import group
 import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
-from presta.utils import IEMRunInfoReader
 from pwd import getpwuid
 import errno
 import os
