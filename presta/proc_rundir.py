@@ -90,7 +90,7 @@ class PreprocessingWorkflow(object):
                 rd_status_checks[2][0]
 
         check_barcode_trimming = not rd_status_checks[2][1] and not self.no_barcode_trimming
-        #check_sanitize_metadata = not rd_status_checks[3]
+        check_sanitize_metadata = not rd_status_checks[3]
 
         if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
@@ -112,7 +112,8 @@ class PreprocessingWorkflow(object):
             sanitize_metadata.si(conf=self.conf.get_irods_section(),
                                  run_info_path=self.run_info['file_path'],
                                  ssht_filename=self.samplesheet['filename'],
-                                 rd_label=self.rd['label']),
+                                 rd_label=self.rd['label'],
+                                 sanitize=check_sanitize_metadata),
 
             copy_run_info_to_irods.si(conf=self.conf.get_irods_section(),
                                       run_info_path=self.run_info['file_path'],
@@ -141,25 +142,19 @@ class PreprocessingWorkflow(object):
                                     queue_spec=self.queues_conf.get('low'))
                         )
 
+        # full pre-processing sequencing rundir pipeline
         pipeline = chain(
             irods_task,
             samplesheet_task,
-            move.si(self.rd['rpath'], self.rd['apath'])
-        ).delay()
-
-        # # full pre-processing sequencing rundir pipeline
-        # pipeline = chain(
-        #     irods_task
-        #     samplesheet_task,
-        #     move.si(self.rd['rpath'], self.rd['apath']),
-        #     bcl2fastq.si(rd_path=self.rd['apath'],
-        #                  ds_path=self.ds['path'],
-        #                  ssht_path=self.samplesheet['file_path'],
-        #                  no_lane_splitting=self.no_lane_splitting,
-        #                  barcode_mismatches = self.barcode_mismatches,
-        #                  batch_queuing=self.batch_queuing,
-        #                  queue_spec=self.queues_conf.get('low')),
-        #     qc_task).delay()
+            move.si(self.rd['rpath'], self.rd['apath']),
+            bcl2fastq.si(rd_path=self.rd['apath'],
+                         ds_path=self.ds['path'],
+                         ssht_path=self.samplesheet['file_path'],
+                         no_lane_splitting=self.no_lane_splitting,
+                         barcode_mismatches = self.barcode_mismatches,
+                         batch_queuing=self.batch_queuing,
+                         queue_spec=self.queues_conf.get('low')),
+            qc_task).delay()
 
 
 help_doc = """

@@ -156,25 +156,25 @@ def copy_qc_dirs(src, dest):
 def sanitize_metadata(**kwargs):
     ir_conf = kwargs.get('conf')
     rundir_label = kwargs.get('rd_label')
-    samplesheet_filename =  kwargs.get('ssht_filename')
+    samplesheet_filename = kwargs.get('ssht_filename')
     run_info_file_path = kwargs.get('run_info_path')
+    sanitize = kwargs.get('sanitize')
 
-    rundir_ipath = os.path.join(ir_conf['runs_collection'],
-                                rundir_label)
+    if sanitize:
+        rundir_ipath = os.path.join(ir_conf['runs_collection'],
+                                    rundir_label)
 
-    samplesheet_ipath = os.path.join(ir_conf['runs_collection'],
-                                     rundir_label,
-                                     samplesheet_filename)
+        samplesheet_ipath = os.path.join(ir_conf['runs_collection'],
+                                         rundir_label,
+                                         samplesheet_filename)
 
-    samplesheet_has_metadata, imetadata = check_metadata(ir_conf=ir_conf,
-                                                        ipath=samplesheet_ipath,
-                                                        get_metadata=True)
-
-    logger.info('Metadata from iRODS {}: {}'.format(samplesheet_ipath, imetadata))
-    if samplesheet_has_metadata:
-        __set_imetadata(ir_conf=ir_conf,
-                        ipath=rundir_ipath,
-                        imetadata=imetadata)
+        samplesheet_has_metadata, imetadata = check_metadata(ir_conf=ir_conf,
+                                                            ipath=samplesheet_ipath,
+                                                            get_metadata=True)
+        if samplesheet_has_metadata:
+            __set_imetadata(ir_conf=ir_conf,
+                            ipath=rundir_ipath,
+                            imetadata=imetadata)
 
 
 @app.task(name='presta.app.tasks.copy_samplesheet_from_irods',
