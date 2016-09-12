@@ -50,7 +50,7 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task0 = seq_completed.si(path)
     task1 = check_ownership.si(user=user, group=grp, dir=path)
     task2 = samplesheet_ready.si(ir_conf, ipath)
-    task3 = check_metadata.si(ir_conf, ipath)
+    task3 = check_metadata.si(ir_conf, os.path.dirname(ipath))
 
     pipeline = group(task0, task1, task2, task3)()
 
@@ -79,7 +79,14 @@ def samplesheet_ready(ir_conf, ipath):
 
 
 @app.task(name='presta.app.tasks.check_metadata')
-def check_metadata(ir_conf, ipath):
+def check_metadata(ir_conf, ipath, get_metadata=False):
+
+    def retrieve_imetadata(iobj):
+        return [dict(name=m.name,
+                     value=m.value,
+                     units=m.units)
+                for m in iobj.metadata.items()]
+
     ir = build_object_store(store='irods',
                             host=ir_conf['host'],
                             port=ir_conf['port'],
@@ -88,6 +95,9 @@ def check_metadata(ir_conf, ipath):
                             zone=ir_conf['zone'])
 
     exists, iobj = ir.exists(ipath, delivery=True)
+
+    if get_metadata:
+        return exists and len(iobj.metadata.items()) > 0, retrieve_imetadata(iobj)
 
     return exists and len(iobj.metadata.items()) > 0
 
@@ -140,6 +150,30 @@ def copy_qc_dirs(src, dest):
     while job.waiting():
         pass
     return job.join()
+
+
+@app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)
+def sanitize_metadata(**kwargs):
+    ir_conf = kwargs.get('conf')
+    rundir_label = kwargs.get('rd_label')
+    samplesheet_filename =  kwargs.get('ssht_basename')
+    run_info_file_path = kwargs.get('run_info_path')
+
+    rundir_ipath = os.path.join(ir_conf['runs_collection'],
+                                rundir_label)
+
+    samplesheet_ipath = os.path.join(ir_conf['runs_collection'],
+                                     rundir_label,
+                                     samplesheet_filename)
+
+    samplesheet_has_metadata, imetadata = check_metadata(ir_conf=ir_conf,
+                                                        ipath=samplesheet_ipath,
+                                                        get_metadata=True)
+
+    if samplesheet_has_metadata:
+        __set_imetadata(ir_conf=ir_conf,
+                        ipath=rundir_ipath,
+                        imetadata=imetadata)
 
 
 @app.task(name='presta.app.tasks.copy_samplesheet_from_irods',
@@ -320,6 +354,24 @@ def fastqc(fq_list, **kwargs):
         output = runJob(cmd_line)
 
     return True if output else False
+
+
+def __set_imetadata(**kwargs):
+    ir_conf = kwargs.get('conf')
+    ipath = kwargs.get('ipath')
+    imetadata=kwargs.get('imetadata')
+
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+    for m in imetadata:
+        ir.add_object_metadata(path=ipath,
+                               meta=(imetadata.get('name'),
+                                     imetadata.get('value') if len(imetadata.get('value')) > 0 else None,
+                                     imetadata.get('units')))
 
 
 def __copy_file_into_irods(**kwargs):

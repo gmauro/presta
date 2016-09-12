@@ -90,6 +90,7 @@ class PreprocessingWorkflow(object):
                 rd_status_checks[2][0]
 
         check_barcode_trimming = not rd_status_checks[2][1] and not self.no_barcode_trimming
+        check_sanitize_metadata = not rd_status_checks[3]
 
         if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
@@ -108,6 +109,11 @@ class PreprocessingWorkflow(object):
         ensure_dir(self.fqc['path'])
 
         irods_task = chain(
+            sanitize_metadata.si(conf=self.conf.get_irods_section(),
+                                 run_info_path=self.run_info['file_path'],
+                                 ssht_filename=self.samplesheet['filename'],
+                                 sanitize=check_sanitize_metadata),
+
             copy_run_info_to_irods.si(conf=self.conf.get_irods_section(),
                                       run_info_path=self.run_info['file_path'],
                                       rd_label=self.rd['label']),
