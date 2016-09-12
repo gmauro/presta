@@ -170,6 +170,7 @@ def sanitize_metadata(**kwargs):
                                                         ipath=samplesheet_ipath,
                                                         get_metadata=True)
 
+    logger.info('Metadata from iRODS {}: {}'.format(samplesheet_ipath, imetadata))
     if samplesheet_has_metadata:
         __set_imetadata(ir_conf=ir_conf,
                         ipath=rundir_ipath,
