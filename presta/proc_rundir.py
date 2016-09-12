@@ -130,8 +130,9 @@ class PreprocessingWorkflow(object):
                                            ssht_path=self.samplesheet['file_path'],
                                            rd_label=self.rd['label']),
 
-            replace_values_into_samplesheet.si(ssht_path=self.samplesheet['file_path'],
-                                               run_info_path=self.run_info['file_path'],
+            replace_values_into_samplesheet.si(conf=self.conf.get_irods_section(),
+                                               ssht_path=self.samplesheet['file_path'],
+                                               rd_label=self.rd['label'],
                                                trim_barcodes=check_barcode_trimming),
 
         )

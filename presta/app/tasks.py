@@ -253,7 +253,6 @@ def replace_values_into_samplesheet(**kwargs):
                         index1=imetadata.get('index2') if imetadata.get('index2') not in 'None' else None)
         return dict(index=None, index1=None)
 
-
     ir_conf = kwargs.get('conf')
     rundir_label = kwargs.get('rd_label')
 
