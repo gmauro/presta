@@ -156,7 +156,7 @@ def copy_qc_dirs(src, dest):
 def sanitize_metadata(**kwargs):
     ir_conf = kwargs.get('conf')
     rundir_label = kwargs.get('rd_label')
-    samplesheet_filename =  kwargs.get('ssht_basename')
+    samplesheet_filename =  kwargs.get('ssht_filename')
     run_info_file_path = kwargs.get('run_info_path')
 
     rundir_ipath = os.path.join(ir_conf['runs_collection'],
