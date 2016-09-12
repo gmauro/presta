@@ -357,10 +357,7 @@ def fastqc(fq_list, **kwargs):
     return True if output else False
 
 
-def __set_imetadata(**kwargs):
-    ir_conf = kwargs.get('conf')
-    ipath = kwargs.get('ipath')
-    imetadata=kwargs.get('imetadata')
+def __set_imetadata(ir_conf, ipath, imetadata):
 
     ir = build_object_store(store='irods',
                             host=ir_conf['host'],
