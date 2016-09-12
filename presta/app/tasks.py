@@ -249,8 +249,13 @@ def replace_values_into_samplesheet(**kwargs):
                                                         ipath=ipath,
                                                         get_metadata=True)
         if rundir_has_metadata:
-            return dict(index=imetadata.get('index') if imetadata.get('index') not in 'None' else None,
-                        index1=imetadata.get('index2') if imetadata.get('index2') not in 'None' else None)
+
+            return dict(index=next((m['value'] for m in imetadata
+                                    if m["name"] == "index" and m['value'] != "None"), None),
+                        index1=next((m['value'] for m in imetadata
+                                    if m["name"] == "index1" and m['value'] != "None"), None),
+                        )
+
         return dict(index=None, index1=None)
 
     ir_conf = kwargs.get('conf')
