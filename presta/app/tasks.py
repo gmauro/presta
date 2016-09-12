@@ -183,19 +183,22 @@ def copy_samplesheet_from_irods(**kwargs):
     samplesheet_file_path = kwargs.get('ssht_path')
     samplesheet_filename = os.path.basename(samplesheet_file_path)
     rundir_label = kwargs.get('rd_label')
+    overwrite_samplesheet = kwargs.get('overwrite_samplesheet')
 
-    ir = build_object_store(store='irods',
-                            host=ir_conf['host'],
-                            port=ir_conf['port'],
-                            user=ir_conf['user'],
-                            password=ir_conf['password'].encode('ascii'),
-                            zone=ir_conf['zone'])
-    ipath = os.path.join(ir_conf['runs_collection'],
-                         rundir_label,
-                         samplesheet_filename)
-    logger.info('Coping samplesheet from iRODS {} to FS {}'.format(
-        ipath, samplesheet_file_path))
-    ir.get_object(ipath, dest_path=samplesheet_file_path)
+    if overwrite_samplesheet:
+        ir = build_object_store(store='irods',
+                                host=ir_conf['host'],
+                                port=ir_conf['port'],
+                                user=ir_conf['user'],
+                                password=ir_conf['password'].encode('ascii'),
+                                zone=ir_conf['zone'])
+
+        ipath = os.path.join(ir_conf['runs_collection'],
+                             rundir_label,
+                             samplesheet_filename)
+        logger.info('Coping samplesheet from iRODS {} to FS {}'.format(
+            ipath, samplesheet_file_path))
+        ir.get_object(ipath, dest_path=samplesheet_file_path)
 
     return samplesheet_file_path
 
@@ -262,15 +265,17 @@ def replace_values_into_samplesheet(**kwargs):
 
     samplesheet_file_path = kwargs.get('ssht_path')
     trim_barcodes = kwargs.get('trim_barcodes')
+    overwrite_samplesheet = kwargs.get('overwrite_samplesheet')
 
-    with open(samplesheet_file_path, 'r') as f:
-        samplesheet = IEMSampleSheetReader(f)
+    if overwrite_samplesheet:
+        with open(samplesheet_file_path, 'r') as f:
+            samplesheet = IEMSampleSheetReader(f)
 
-    with open(samplesheet_file_path, 'w') as f:
-        for row in samplesheet.get_body(replace=True,
-                                        trim=trim_barcodes,
-                                        barcodes_length=get_barcodes_length(ir_conf, rundir_label)):
-            f.write(row)
+        with open(samplesheet_file_path, 'w') as f:
+            for row in samplesheet.get_body(replace=True,
+                                            trim=trim_barcodes,
+                                            barcodes_length=get_barcodes_length(ir_conf, rundir_label)):
+                f.write(row)
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)
