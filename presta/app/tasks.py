@@ -251,11 +251,11 @@ def replace_values_into_samplesheet(**kwargs):
         if rundir_has_metadata:
             logger.info(imetadata)
             logger.info(next((m['value'] for m in imetadata
-                                    if m["name"] == "index" and m['value'] != "None"), 'here'))
+                                    if m["name"] == "index1_cycles" and m['value'] != "None"), 'here'))
             return dict(index=next((m['value'] for m in imetadata
-                                    if m["name"] == "index" and m['value'] != "None"), None),
+                                    if m["name"] == "index1_cycles" and m['value'] != "None"), None),
                         index1=next((m['value'] for m in imetadata
-                                    if m["name"] == "index1" and m['value'] != "None"), None),
+                                    if m["name"] == "index2_cycles" and m['value'] != "None"), None),
                         )
 
         return dict(index=None, index1=None)
