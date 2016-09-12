@@ -62,7 +62,7 @@ class PreprocessingWorkflow(object):
 
         self.barcode_mismatches = args.barcode_mismatches
 
-        self.overwrite_samplesheet = args.overwrite_samplesheet
+        self.no_overwrite_samplesheet = args.no_overwrite_samplesheet
 
         self.batch_queuing = args.batch_queuing
         self.queues_conf = conf.get_section('queues')
@@ -102,8 +102,6 @@ class PreprocessingWorkflow(object):
         self.logger.info('completed path {}'.format(self.rd['cpath']))
         self.logger.info('archive path {}'.format(self.rd['apath']))
         self.logger.info('samplesheet path {}'.format(self.samplesheet['file_path']))
-        self.logger.info('run info path {}'.format(self.run_info['file_path']))
-        self.logger.info('run parameters path {}'.format(self.run_parameters['file_path']))
 
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
@@ -113,27 +111,34 @@ class PreprocessingWorkflow(object):
                                  run_info_path=self.run_info['file_path'],
                                  ssht_filename=self.samplesheet['filename'],
                                  rd_label=self.rd['label'],
-                                 sanitize=check_sanitize_metadata),
+                                 sanitize=check_sanitize_metadata
+                                 ),
 
             copy_run_info_to_irods.si(conf=self.conf.get_irods_section(),
                                       run_info_path=self.run_info['file_path'],
-                                      rd_label=self.rd['label']),
+                                      rd_label=self.rd['label']
+                                      ),
 
             copy_run_parameters_to_irods.si(conf=self.conf.get_irods_section(),
                                             run_parameters_path=self.run_parameters['file_path'],
-                                            rd_label=self.rd['label']),
+                                            rd_label=self.rd['label']
+                                            ),
         )
 
         samplesheet_task = chain(
 
             copy_samplesheet_from_irods.si(conf=self.conf.get_irods_section(),
                                            ssht_path=self.samplesheet['file_path'],
-                                           rd_label=self.rd['label']),
+                                           rd_label=self.rd['label'],
+                                           overwrite_samplesheet=not self.no_overwrite_samplesheet
+                                           ),
 
             replace_values_into_samplesheet.si(conf=self.conf.get_irods_section(),
                                                ssht_path=self.samplesheet['file_path'],
                                                rd_label=self.rd['label'],
-                                               trim_barcodes=check_barcode_trimming),
+                                               trim_barcodes=check_barcode_trimming,
+                                               overwrite_samplesheet=not self.no_overwrite_samplesheet
+                                               ),
 
         )
 
@@ -152,7 +157,7 @@ class PreprocessingWorkflow(object):
                          ds_path=self.ds['path'],
                          ssht_path=self.samplesheet['file_path'],
                          no_lane_splitting=self.no_lane_splitting,
-                         barcode_mismatches = self.barcode_mismatches,
+                         barcode_mismatches=self.barcode_mismatches,
                          batch_queuing=self.batch_queuing,
                          queue_spec=self.queues_conf.get('low')),
             qc_task).delay()
@@ -167,8 +172,8 @@ def make_parser(parser):
     parser.add_argument('--rd_path', metavar="PATH",
                         help="rundir path", required=True)
     parser.add_argument('--output', type=str, help='output path', default='')
-    parser.add_argument('--overwrite_samplesheet', action='store_true',
-                        help='Overwrite the samplesheet '
+    parser.add_argument('--no_overwrite_samplesheet', action='store_true',
+                        help='Do not overwrite the samplesheet '
                              'if already present into the filesystem')
     parser.add_argument('--no_barcode_trimming', action='store_true',
                         help='Do not trim barcode')
