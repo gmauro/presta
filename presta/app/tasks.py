@@ -243,13 +243,22 @@ def copy_run_parameters_to_irods(**kwargs):
           ignore_result=True)
 def replace_values_into_samplesheet(**kwargs):
 
-    def get_barcodes_length(run_info_file_path):
-        with open(run_info_file_path, 'r') as r:
-            run_info_file = IEMRunInfoReader(r)
-        return run_info_file.get_barcodes_length()
+    def get_barcodes_length(ir_conf, rundir_label):
+        ipath = os.path.join(ir_conf['runs_collection'],
+                             rundir_label)
+        rundir_has_metadata, imetadata = check_metadata(ir_conf=ir_conf,
+                                                        ipath=ipath,
+                                                        get_metadata=True)
+        if rundir_has_metadata:
+            return dict(index=imetadata.get('index') if imetadata.get('index') not in 'None' else None,
+                        index1=imetadata.get('index2') if imetadata.get('index2') not in 'None' else None)
+        return dict(index=None, index1=None)
+
+
+    ir_conf = kwargs.get('conf')
+    rundir_label = kwargs.get('rd_label')
 
     samplesheet_file_path = kwargs.get('ssht_path')
-    run_info_file_path = kwargs.get('run_info_path')
     trim_barcodes = kwargs.get('trim_barcodes')
 
     with open(samplesheet_file_path, 'r') as f:
@@ -258,7 +267,7 @@ def replace_values_into_samplesheet(**kwargs):
     with open(samplesheet_file_path, 'w') as f:
         for row in samplesheet.get_body(replace=True,
                                         trim=trim_barcodes,
-                                        barcodes_length=get_barcodes_length(run_info_file_path)):
+                                        barcodes_length=get_barcodes_length(ir_conf, rundir_label)):
             f.write(row)
 
 
