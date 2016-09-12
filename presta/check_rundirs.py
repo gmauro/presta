@@ -36,10 +36,10 @@ class RundirsRootpath(object):
         localroot, dirnames, filenames = os.walk(self.root_path).next()
 
         positive_labels = ['finished', "ownership ok" ,
-                           'SampleSheet found', 'Barcodes have the same size']
+                           'SampleSheet found', 'Barcodes have the same size', 'Metadata found']
         negative_labels = ['running ', "waiting for ownership's modification",
                            'SampleSheet not found',
-                           "Barcodes don't have the same size"]
+                           "Barcodes don't have the same size", 'Metadata not found']
 
         dir_dict = dict()
         for d in dirnames:

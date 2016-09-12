@@ -4,8 +4,9 @@ import sys
 from alta.utils import ensure_dir
 from presta.utils import path_exists, get_conf
 from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
-     rd_ready_to_be_preprocessed, copy_samplesheet_from_irods, \
-     replace_values_into_samplesheet
+    rd_ready_to_be_preprocessed, \
+    copy_samplesheet_from_irods, copy_run_info_to_irods, copy_run_parameters_to_irods, \
+    replace_values_into_samplesheet, sanitize_metadata
 from celery import chain
 
 
@@ -40,13 +41,28 @@ class PreprocessingWorkflow(object):
                                            ssheet['filename'])
         self.samplesheet = ssheet
 
+        run_info = {'basepath': os.path.join(rpath),
+                    'filename': 'RunInfo.xml'}
+        run_info['file_path'] = os.path.join(run_info['basepath'],
+                                             run_info['filename'])
+        self.run_info = run_info
+
+        run_parameters = {'basepath': os.path.join(rpath),
+                          'filename': 'runParameters.xml'}
+        run_parameters['file_path'] = os.path.join(run_parameters['basepath'],
+                                                   run_parameters['filename'])
+        self.run_parameters = run_parameters
+
         do_conf = conf.get_section('data_ownership')
         self.user = do_conf.get('user')
         self.group = do_conf.get('group')
 
         self.no_lane_splitting = args.no_lane_splitting
+        self.no_barcode_trimming = args.no_barcode_trimming
 
         self.barcode_mismatches = args.barcode_mismatches
+
+        self.overwrite_samplesheet = args.overwrite_samplesheet
 
         self.batch_queuing = args.batch_queuing
         self.queues_conf = conf.get_section('queues')
@@ -71,7 +87,11 @@ class PreprocessingWorkflow(object):
             ir_conf=self.conf.get_irods_section())
 
         check = rd_status_checks[0] and rd_status_checks[1] and \
-                rd_status_checks[2]
+                rd_status_checks[2][0]
+
+        check_barcode_trimming = not rd_status_checks[2][1] and not self.no_barcode_trimming
+        check_sanitize_metadata = not rd_status_checks[3]
+
         if not check:
             self.logger.error("{} is not ready to be preprocessed".format(
                 self.rd['label']))
@@ -81,15 +101,40 @@ class PreprocessingWorkflow(object):
         self.logger.info('running path {}'.format(self.rd['rpath']))
         self.logger.info('completed path {}'.format(self.rd['cpath']))
         self.logger.info('archive path {}'.format(self.rd['apath']))
+        self.logger.info('samplesheet path {}'.format(self.samplesheet['file_path']))
+        self.logger.info('run info path {}'.format(self.run_info['file_path']))
+        self.logger.info('run parameters path {}'.format(self.run_parameters['file_path']))
 
         ensure_dir(self.ds['path'])
         ensure_dir(self.fqc['path'])
 
+        irods_task = chain(
+            sanitize_metadata.si(conf=self.conf.get_irods_section(),
+                                 run_info_path=self.run_info['file_path'],
+                                 ssht_filename=self.samplesheet['filename'],
+                                 rd_label=self.rd['label'],
+                                 sanitize=check_sanitize_metadata),
+
+            copy_run_info_to_irods.si(conf=self.conf.get_irods_section(),
+                                      run_info_path=self.run_info['file_path'],
+                                      rd_label=self.rd['label']),
+
+            copy_run_parameters_to_irods.si(conf=self.conf.get_irods_section(),
+                                            run_parameters_path=self.run_parameters['file_path'],
+                                            rd_label=self.rd['label']),
+        )
+
         samplesheet_task = chain(
+
             copy_samplesheet_from_irods.si(conf=self.conf.get_irods_section(),
                                            ssht_path=self.samplesheet['file_path'],
                                            rd_label=self.rd['label']),
-            replace_values_into_samplesheet.s()
+
+            replace_values_into_samplesheet.si(conf=self.conf.get_irods_section(),
+                                               ssht_path=self.samplesheet['file_path'],
+                                               rd_label=self.rd['label'],
+                                               trim_barcodes=check_barcode_trimming),
+
         )
 
         qc_task = chain(rd_collect_fastq.si(ds_path=self.ds['path']),
@@ -100,6 +145,7 @@ class PreprocessingWorkflow(object):
 
         # full pre-processing sequencing rundir pipeline
         pipeline = chain(
+            irods_task,
             samplesheet_task,
             move.si(self.rd['rpath'], self.rd['apath']),
             bcl2fastq.si(rd_path=self.rd['apath'],
@@ -121,10 +167,14 @@ def make_parser(parser):
     parser.add_argument('--rd_path', metavar="PATH",
                         help="rundir path", required=True)
     parser.add_argument('--output', type=str, help='output path', default='')
-    #parser.add_argument('--samplesheet', type=str, help='samplesheet path')
+    parser.add_argument('--overwrite_samplesheet', action='store_true',
+                        help='Overwrite the samplesheet '
+                             'if already present into the filesystem')
+    parser.add_argument('--no_barcode_trimming', action='store_true',
+                        help='Do not trim barcode')
     parser.add_argument('--fastqc_outdir', type=str, help='fastqc output path')
     parser.add_argument('--no_lane_splitting', action='store_true',
-                        help='Do not split fastq by lane.')
+                        help='Do not split fastq by lane')
     parser.add_argument("--barcode_mismatches", type=int, choices=[0, 1, 2],
                         default=1, help='Number of allowed mismatches per index')
 

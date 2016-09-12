@@ -14,6 +14,7 @@ from pkg_resources import resource_filename
 
 SAMPLES_WITHOUT_BARCODES = [2, 8]
 
+
 class IEMSampleSheetReader(csv.DictReader):
     """
     Illumina Experimental Manager SampleSheet reader.
@@ -74,7 +75,8 @@ class IEMSampleSheetReader(csv.DictReader):
 
         return True if pstdev(lengths) == float(0) else False
 
-    def get_body(self, label='Sample_Name', new_value='', replace=True):
+    def get_body(self, label='Sample_Name', new_value='', replace=True,
+                 trim=True, barcodes_length=dict(index=None, index1=None)):
         def sanitize(mystr):
             """
             Sanitize string in accordance with Illumina's documentation
@@ -82,6 +84,11 @@ class IEMSampleSheetReader(csv.DictReader):
             """
             retainlist="_-"
             return re.sub(r'[^\w'+retainlist+']', '_', mystr)
+
+        def cut(barcode, lenght):
+            if isinstance(lenght, basestring):
+                lenght = int(lenght)-1
+            return barcode[:lenght]
 
         body = []
         for i in self.header:
@@ -91,10 +98,13 @@ class IEMSampleSheetReader(csv.DictReader):
         body.append('\n')
 
         to_be_sanitized = ['Sample_Project', 'Sample_Name']
+        to_be_trimmed = ['index', 'index2']
         for row in self.data:
             for f in self.data.fieldnames:
                 if replace and f == label:
                     body.append(new_value)
+                elif trim and f in to_be_trimmed:
+                    body.append(cut(row[f],barcodes_length[f]))
                 else:
                     if f in to_be_sanitized:
                         body.append(sanitize(row[f]))

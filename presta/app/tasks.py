@@ -49,11 +49,12 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task0 = seq_completed.si(path)
     task1 = check_ownership.si(user=user, group=grp, dir=path)
     task2 = samplesheet_ready.si(ir_conf, ipath)
+    task3 = check_metadata.si(ir_conf, os.path.dirname(ipath))
 
-    pipeline = group(task0, task1, task2)()
+    pipeline = group(task0, task1, task2, task3)()
 
-    # while pipeline.waiting():
-    #     pass
+    while pipeline.waiting():
+         pass
     return pipeline.join()
 
 
@@ -76,33 +77,28 @@ def samplesheet_ready(ir_conf, ipath):
         return False, False
 
 
-# @app.task(name='presta.app.tasks.check_barcodes_size')
-# def check_barcodes_size(ir_conf, ipath):
-#     ir = build_object_store(store='irods',
-#                             host=ir_conf['host'],
-#                             port=ir_conf['port'],
-#                             user=ir_conf['user'],
-#                             password=ir_conf['password'].encode('ascii'),
-#                             zone=ir_conf['zone'])
-#
-#     exists, iobj = ir.exists(ipath, delivery=True)
-#     if iobj:
-#         with iobj.open('r') as f:
-#             samplesheet = IEMSampleSheetReader(f)
-#
-#         return samplesheet.barcodes_have_the_same_size()
-#
-#
-# @app.task(name='presta.app.tasks.iexists')
-# def iexists(ir_conf, ipath):
-#     ir = build_object_store(store='irods',
-#                             host=ir_conf['host'],
-#                             port=ir_conf['port'],
-#                             user=ir_conf['user'],
-#                             password=ir_conf['password'].encode('ascii'),
-#                             zone=ir_conf['zone'])
-#
-#     return ir.exists(ipath)
+@app.task(name='presta.app.tasks.check_metadata')
+def check_metadata(ir_conf, ipath, get_metadata=False):
+
+    def retrieve_imetadata(iobj):
+        return [dict(name=m.name,
+                     value=m.value,
+                     units=m.units)
+                for m in iobj.metadata.items()]
+
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+
+    exists, iobj = ir.exists(ipath, delivery=True)
+
+    if get_metadata:
+        return exists and len(iobj.metadata.items()) > 0, retrieve_imetadata(iobj)
+
+    return exists and len(iobj.metadata.items()) > 0
 
 
 @app.task(name='presta.app.tasks.seq_completed')
@@ -155,6 +151,31 @@ def copy_qc_dirs(src, dest):
     return job.join()
 
 
+@app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)
+def sanitize_metadata(**kwargs):
+    ir_conf = kwargs.get('conf')
+    rundir_label = kwargs.get('rd_label')
+    samplesheet_filename = kwargs.get('ssht_filename')
+    run_info_file_path = kwargs.get('run_info_path')
+    sanitize = kwargs.get('sanitize')
+
+    if sanitize:
+        rundir_ipath = os.path.join(ir_conf['runs_collection'],
+                                    rundir_label)
+
+        samplesheet_ipath = os.path.join(ir_conf['runs_collection'],
+                                         rundir_label,
+                                         samplesheet_filename)
+
+        samplesheet_has_metadata, imetadata = check_metadata(ir_conf=ir_conf,
+                                                            ipath=samplesheet_ipath,
+                                                            get_metadata=True)
+        if samplesheet_has_metadata:
+            __set_imetadata(ir_conf=ir_conf,
+                            ipath=rundir_ipath,
+                            imetadata=imetadata)
+
+
 @app.task(name='presta.app.tasks.copy_samplesheet_from_irods',
           ignore_result=True)
 def copy_samplesheet_from_irods(**kwargs):
@@ -179,14 +200,76 @@ def copy_samplesheet_from_irods(**kwargs):
     return samplesheet_file_path
 
 
+@app.task(name='presta.app.tasks.copy_run_info_to_irods',
+          ignore_result=True)
+def copy_run_info_to_irods(**kwargs):
+    ir_conf = kwargs.get('conf')
+    run_info_file_path = kwargs.get('run_info_path')
+    run_info_filename = os.path.basename(run_info_file_path)
+    rundir_label = kwargs.get('rd_label')
+
+    irods_path = os.path.join(ir_conf['runs_collection'],
+                              rundir_label,
+                              run_info_filename)
+
+    __copy_file_into_irods(conf=ir_conf,
+                           file_path=run_info_file_path,
+                           irods_path=irods_path)
+
+    return run_info_file_path
+
+
+@app.task(name='presta.app.tasks.copy_run_parameters_to_irods',
+          ignore_result=True)
+def copy_run_parameters_to_irods(**kwargs):
+    ir_conf = kwargs.get('conf')
+    run_parameters_file_path = kwargs.get('run_parameters_path')
+    run_parameters_filename = os.path.basename(run_parameters_file_path)
+    rundir_label = kwargs.get('rd_label')
+
+    irods_path = os.path.join(ir_conf['runs_collection'],
+                              rundir_label,
+                              run_parameters_filename)
+
+    __copy_file_into_irods(conf=ir_conf,
+                           file_path=run_parameters_file_path,
+                           irods_path=irods_path)
+
+    return run_parameters_file_path
+
+
 @app.task(name='presta.app.tasks.replace_values_into_samplesheet',
           ignore_result=True)
-def replace_values_into_samplesheet(file_path):
-    with open(file_path, 'r') as f:
+def replace_values_into_samplesheet(**kwargs):
+
+    def get_barcodes_length(ir_conf, rundir_label):
+        ipath = os.path.join(ir_conf['runs_collection'],
+                             rundir_label)
+        rundir_has_metadata, imetadata = check_metadata(ir_conf=ir_conf,
+                                                        ipath=ipath,
+                                                        get_metadata=True)
+        if rundir_has_metadata:
+            return dict(index=next((m['value'] for m in imetadata
+                                    if m["name"] == "index1_cycles" and m['value'] != "None"), None),
+                        index1=next((m['value'] for m in imetadata
+                                    if m["name"] == "index2_cycles" and m['value'] != "None"), None),
+                        )
+
+        return dict(index=None, index1=None)
+
+    ir_conf = kwargs.get('conf')
+    rundir_label = kwargs.get('rd_label')
+
+    samplesheet_file_path = kwargs.get('ssht_path')
+    trim_barcodes = kwargs.get('trim_barcodes')
+
+    with open(samplesheet_file_path, 'r') as f:
         samplesheet = IEMSampleSheetReader(f)
 
-    with open(file_path, 'w') as f:
-        for row in samplesheet.get_body(replace=True):
+    with open(samplesheet_file_path, 'w') as f:
+        for row in samplesheet.get_body(replace=True,
+                                        trim=trim_barcodes,
+                                        barcodes_length=get_barcodes_length(ir_conf, rundir_label)):
             f.write(row)
 
 
@@ -283,6 +366,38 @@ def fastqc(fq_list, **kwargs):
         output = runJob(cmd_line)
 
     return True if output else False
+
+
+def __set_imetadata(ir_conf, ipath, imetadata):
+
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+    for m in imetadata:
+        ir.add_object_metadata(path=ipath,
+                               meta=(m.get('name'),
+                                     m.get('value') if len(m.get('value')) > 0 else None,
+                                     m.get('units')))
+
+
+def __copy_file_into_irods(**kwargs):
+    ir_conf = kwargs.get('conf')
+    file_path = kwargs.get('file_path')
+    irods_path = kwargs.get('irods_path')
+
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+
+    logger.info('Coping from FS {} to iRODS {}'.format(file_path, irods_path))
+
+    ir.put_object(source_path=file_path, dest_path=irods_path, force=True)
 
 
 def runGEJob(jt_attr):
