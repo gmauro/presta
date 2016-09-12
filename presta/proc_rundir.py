@@ -111,7 +111,8 @@ class PreprocessingWorkflow(object):
         irods_task = chain(
             sanitize_metadata.si(conf=self.conf.get_irods_section(),
                                  run_info_path=self.run_info['file_path'],
-                                 ssht_filename=self.samplesheet['filename']),
+                                 ssht_filename=self.samplesheet['filename'],
+                                 rd_label=self.rd['label']),
 
             copy_run_info_to_irods.si(conf=self.conf.get_irods_section(),
                                       run_info_path=self.run_info['file_path'],
