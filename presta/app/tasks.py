@@ -299,7 +299,7 @@ def bcl2fastq(**kwargs):
                '--ignore-missing-filter',
                '--ignore-missing-positions',
                '--find-adapters-with-sliding-window',
-               '--barcode_mismatches {}'.format(barcode_mismatches)]
+               '--barcode-mismatches {}'.format(barcode_mismatches)]
 
     if no_lane_splitting:
         options.append('--no-lane-splitting')
