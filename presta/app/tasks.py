@@ -367,9 +367,9 @@ def __set_imetadata(ir_conf, ipath, imetadata):
                             zone=ir_conf['zone'])
     for m in imetadata:
         ir.add_object_metadata(path=ipath,
-                               meta=(imetadata.get('name'),
-                                     imetadata.get('value') if len(imetadata.get('value')) > 0 else None,
-                                     imetadata.get('units')))
+                               meta=(m.get('name'),
+                                     m.get('value') if len(m.get('value')) > 0 else None,
+                                     m.get('units')))
 
 
 def __copy_file_into_irods(**kwargs):
