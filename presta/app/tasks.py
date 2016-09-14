@@ -264,33 +264,20 @@ def replace_index_cycles_into_run_info(**kwargs):
     run_info_file_path = kwargs.get('run_info_path')
     rundir_label = kwargs.get('rd_label')
 
-    logger.info('overwrite_run_info_file : {}'.format(overwrite_run_info_file))
-    logger.info('run_info_file_path : {}'.format(run_info_file_path))
-    logger.info('rundir_label : {}'.format(rundir_label))
-
     if overwrite_run_info_file:
         index_cycles_from_metadata = __get_index_cycles_from_metadata(ir_conf=ir_conf,
                                                                       rundir_label=rundir_label)
-
-        logger.info('index_cycles_from_metadata : {}'.format(index_cycles_from_metadata))
 
         index_cycles_from_run_info_file, default_index_cycles = __get_index_cycles_from_run_info_file(
             run_info_file_path=run_info_file_path,
             get_default_values=True)
 
-        logger.info('index_cycles_from_info_file : {}'.format(index_cycles_from_run_info_file))
-        logger.info('default_index_cycles : {}'.format(default_index_cycles))
-
         index_cycles = default_index_cycles \
             if index_cycles_from_metadata == index_cycles_from_run_info_file\
             else index_cycles_from_metadata
 
-        logger.info('index_cycles: {}'.format(index_cycles))
-
+        logger.info('Editing index cycles on: {}\n New values: {}'.format(run_info_file_path, index_cycles))
         run_info_file = IEMRunInfoReader(run_info_file_path)
-
-        logger.info('run_info_file: {}'.format(run_info_file))
-
         run_info_file.set_index_cycles(index_cycles)
 
 
