@@ -317,15 +317,21 @@ def bcl2fastq(**kwargs):
     with open(ssht_path, 'r') as f:
         samplesheet = IEMSampleSheetReader(f)
 
-    logger.info('barcode mask: {}'.format(samplesheet.get_barcode_mask()))
-    return
+    barcode_mask = samplesheet.get_barcode_mask()
+    for lane, barcode_length in barcode_mask.items():
+        if barcode_length['index1'] is None or barcode_length['index1'] in ['None']:
+            options.append("--use-bases-mask {}:Y*,I{}n*,Y*".format(lane, barcode_length['index']))
+        else:
+            options.append(
+                "--use-bases-mask {}:Y*,I{}n*,I{}n*,Y*".format(lane, barcode_length['index'], barcode_length['index1']))
+
     if no_lane_splitting:
         options.append('--no-lane-splitting')
 
     cmd_line = shlex.split(' '.join([command, rd_arg, output_arg,
                                     samplesheet_arg, ' '.join(options)]))
     logger.info('Executing {}'.format(cmd_line))
-
+    return
     if submit_to_batch_scheduler:
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
