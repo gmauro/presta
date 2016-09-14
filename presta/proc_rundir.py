@@ -10,7 +10,6 @@ from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
 from celery import chain
 
 
-
 class PreprocessingWorkflow(object):
     def __init__(self, args=None, logger=None):
         self.logger = logger
@@ -158,9 +157,9 @@ class PreprocessingWorkflow(object):
             samplesheet_task,
 
             replace_index_cycles_into_run_info.si(conf=self.conf.get_irods_section(),
-                                               barcodes_have_same_size=barcodes_have_same_size,
-                                               run_info_path=self.run_info['file_path'],
-                                               rd_label=self.rd['label']),
+                                                  barcodes_have_same_size=barcodes_have_same_size,
+                                                  run_info_path=self.run_info['file_path'],
+                                                  rd_label=self.rd['label']),
 
             move.si(self.rd['rpath'], self.rd['apath']),
             bcl2fastq.si(rd_path=self.rd['apath'],
@@ -170,13 +169,13 @@ class PreprocessingWorkflow(object):
                          barcode_mismatches=self.barcode_mismatches,
                          batch_queuing=self.batch_queuing,
                          queue_spec=self.queues_conf.get('low')),
-            #
-            # replace_index_cycles_into_run_info(conf=self.conf.get_irods_section(),
-            #                                    barcodes_have_same_size=barcodes_have_same_size,
-            #                                    run_info_path=self.run_info['file_apath'],
-            #                                    rd_label=self.rd['label']),
-            #
-            # qc_task,
+
+            replace_index_cycles_into_run_info(conf=self.conf.get_irods_section(),
+                                               barcodes_have_same_size=barcodes_have_same_size,
+                                               run_info_path=self.run_info['file_apath'],
+                                               rd_label=self.rd['label']),
+
+            qc_task,
         ).delay()
 
 

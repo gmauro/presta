@@ -54,8 +54,8 @@ def rd_ready_to_be_preprocessed(**kwargs):
 
     pipeline = group(task0, task1, task2, task3)()
 
-    # while pipeline.waiting():
-    #      pass
+    while pipeline.waiting():
+         pass
     return pipeline.join()
 
 
@@ -314,6 +314,9 @@ def bcl2fastq(**kwargs):
                '--find-adapters-with-sliding-window',
                '--barcode-mismatches {}'.format(barcode_mismatches)]
 
+    if no_lane_splitting:
+        options.append('--no-lane-splitting')
+
     with open(ssht_path, 'r') as f:
         samplesheet = IEMSampleSheetReader(f)
 
@@ -325,13 +328,10 @@ def bcl2fastq(**kwargs):
             options.append(
                 "--use-bases-mask {}:Y*,I{}n*,I{}n*,Y*".format(lane, barcode_length['index'], barcode_length['index1']))
 
-    if no_lane_splitting:
-        options.append('--no-lane-splitting')
-
     cmd_line = shlex.split(' '.join([command, rd_arg, output_arg,
                                     samplesheet_arg, ' '.join(options)]))
     logger.info('Executing {}'.format(cmd_line))
-    return
+
     if submit_to_batch_scheduler:
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
