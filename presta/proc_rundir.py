@@ -157,7 +157,7 @@ class PreprocessingWorkflow(object):
             irods_task,
             samplesheet_task,
 
-            replace_index_cycles_into_run_info(conf=self.conf.get_irods_section(),
+            replace_index_cycles_into_run_info.si(conf=self.conf.get_irods_section(),
                                                barcodes_have_same_size=barcodes_have_same_size,
                                                run_info_path=self.run_info['file_path'],
                                                rd_label=self.rd['label']),
