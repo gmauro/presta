@@ -7,6 +7,7 @@ from celery import group
 import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
+from presta.utils import IEMRunInfoReader
 from pwd import getpwuid
 import errno
 import os
@@ -156,7 +157,6 @@ def sanitize_metadata(**kwargs):
     ir_conf = kwargs.get('conf')
     rundir_label = kwargs.get('rd_label')
     samplesheet_filename = kwargs.get('ssht_filename')
-    run_info_file_path = kwargs.get('run_info_path')
     sanitize = kwargs.get('sanitize')
 
     if sanitize:
@@ -245,26 +245,7 @@ def copy_run_parameters_to_irods(**kwargs):
           ignore_result=True)
 def replace_values_into_samplesheet(**kwargs):
 
-    def get_barcodes_length(ir_conf, rundir_label):
-        ipath = os.path.join(ir_conf['runs_collection'],
-                             rundir_label)
-        rundir_has_metadata, imetadata = check_metadata(ir_conf=ir_conf,
-                                                        ipath=ipath,
-                                                        get_metadata=True)
-        if rundir_has_metadata:
-            return dict(index=next((m['value'] for m in imetadata
-                                    if m["name"] == "index1_cycles" and m['value'] != "None"), None),
-                        index1=next((m['value'] for m in imetadata
-                                    if m["name"] == "index2_cycles" and m['value'] != "None"), None),
-                        )
-
-        return dict(index=None, index1=None)
-
-    ir_conf = kwargs.get('conf')
-    rundir_label = kwargs.get('rd_label')
-
     samplesheet_file_path = kwargs.get('ssht_path')
-    trim_barcodes = kwargs.get('trim_barcodes')
     overwrite_samplesheet = kwargs.get('overwrite_samplesheet')
 
     if overwrite_samplesheet:
@@ -272,10 +253,33 @@ def replace_values_into_samplesheet(**kwargs):
             samplesheet = IEMSampleSheetReader(f)
 
         with open(samplesheet_file_path, 'w') as f:
-            for row in samplesheet.get_body(replace=True,
-                                            trim=trim_barcodes,
-                                            barcodes_length=get_barcodes_length(ir_conf, rundir_label)):
+            for row in samplesheet.get_body(replace=True):
                 f.write(row)
+
+@app.task(name='presta.app.tasks.replace_index_cycles_into_run_info',
+          ignore_result=True)
+def replace_index_cycles_into_run_info(**kwargs):
+    ir_conf = kwargs.get('conf')
+    overwrite_run_info_file = not kwargs.get('barcodes_have_same_size')
+    run_info_file_path = kwargs.get('run_info_path')
+    rundir_label = kwargs.get('rd_label')
+
+    if overwrite_run_info_file:
+        index_cycles_from_metadata = __get_index_cycles_from_metadata(ir_conf=ir_conf,
+                                                                      rundir_label=rundir_label)
+
+        index_cycles_from_run_info_file, default_index_cycles = __get_index_cycles_from_run_info_file(
+            run_info_file_path=run_info_file_path,
+            get_default_values=True)
+
+        index_cycles = index_cycles_from_metadata \
+            if index_cycles_from_metadata == index_cycles_from_run_info_file\
+            else default_index_cycles
+
+
+        run_info_file = IEMRunInfoReader(run_info_file_path)
+
+        run_info_file.set_index_cycles(index_cycles)
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)
@@ -403,6 +407,32 @@ def __copy_file_into_irods(**kwargs):
     logger.info('Coping from FS {} to iRODS {}'.format(file_path, irods_path))
 
     ir.put_object(source_path=file_path, dest_path=irods_path, force=True)
+
+
+def __get_index_cycles_from_metadata(ir_conf, rundir_label):
+    ipath = os.path.join(ir_conf['runs_collection'],
+                         rundir_label)
+    rundir_has_metadata, imetadata = check_metadata(ir_conf=ir_conf,
+                                                    ipath=ipath,
+                                                    get_metadata=True)
+    if rundir_has_metadata:
+        return dict(index=next((m['value'] for m in imetadata
+                                if m["name"] == "index1_cycles" and m['value'] != "None"), None),
+                    index1=next((m['value'] for m in imetadata
+                                 if m["name"] == "index2_cycles" and m['value'] != "None"), None),
+                    )
+
+    return dict(index=None, index1=None)
+
+
+def __get_index_cycles_from_run_info_file(run_info_file_path, get_default_values=False):
+    with open(run_info_file_path, 'r') as f:
+        run_info_file = IEMRunInfoReader(f)
+
+    if get_default_values:
+        return run_info_file.get_index_cycles(), run_info_file.get_default_index_cycles()
+
+    return run_info_file.get_index_cycles()
 
 
 def runGEJob(jt_attr):
