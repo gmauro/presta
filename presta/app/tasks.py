@@ -276,7 +276,12 @@ def replace_index_cycles_into_run_info(**kwargs):
             if index_cycles_from_metadata == index_cycles_from_run_info_file\
             else index_cycles_from_metadata
 
-        logger.info('Editing index cycles on: {}\n New values: {}'.format(run_info_file_path, index_cycles))
+        logger.info('Editing index cycles on: {}\n'
+                    'Old values:{}\n'
+                    'New values: {}'.format(run_info_file_path,
+                                            index_cycles_from_run_info_file,
+                                            index_cycles))
+
         run_info_file = IEMRunInfoReader(run_info_file_path)
         run_info_file.set_index_cycles(index_cycles)
 
@@ -309,6 +314,11 @@ def bcl2fastq(**kwargs):
                '--find-adapters-with-sliding-window',
                '--barcode-mismatches {}'.format(barcode_mismatches)]
 
+    with open(ssht_path, 'r') as f:
+        samplesheet = IEMSampleSheetReader(f)
+
+    logger.info('barcode mask: {}'.format(samplesheet.get_barcode_mask()))
+    return
     if no_lane_splitting:
         options.append('--no-lane-splitting')
 
