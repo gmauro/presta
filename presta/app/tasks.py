@@ -279,10 +279,11 @@ def replace_index_cycles_into_run_info(**kwargs):
             get_default_values=True)
 
         logger.info('index_cycles_from_info_file : {}'.format(index_cycles_from_run_info_file))
+        logger.info('default_index_cycles : {}'.format(default_index_cycles))
 
-        index_cycles = index_cycles_from_metadata \
+        index_cycles = default_index_cycles \
             if index_cycles_from_metadata == index_cycles_from_run_info_file\
-            else default_index_cycles
+            else index_cycles_from_metadata
 
         logger.info('index_cycles: {}'.format(index_cycles))
 
