@@ -16,9 +16,9 @@ app.conf.update(
         # Execute every three hours: midnight, 3am, 6am, 9am, noon, 3pm, 6pm, 9pm.
 
         'check-every-three-minutes': {
-            'task': 'check_rd_ready_to_be_preprocessed',
+            'task': str('check_rd_ready_to_be_preprocessed'),
             'schedule': crontab(minute='*/1'),
-            'args': 'SEQ_RUNNING',
+            'args': str('SEQ_RUNNING'),
         },
     }
 )
