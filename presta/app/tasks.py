@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from . import app
 from alta.objectstore import build_object_store
 from alta.utils import ensure_dir
+from presta.utils import path_exists, get_conf, paths_setup
 from celery import group
 import drmaa
 from grp import getgrgid
@@ -22,6 +23,7 @@ logger = get_task_logger(__name__)
 
 @app.task(name='presta.app.tasks.check_rd_ready_to_be_preprocessed')
 def check_rd_ready_to_be_preprocessed(**kwargs):
+    conf = get_conf(logger, args.config_file)
     logger.info('TEST CRONTABLE: {}'.format(kwargs.get('rd_path')))
 
 
