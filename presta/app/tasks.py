@@ -30,7 +30,7 @@ def check_rd_ready_to_be_preprocessed(**kwargs):
 
     rundirs_root_path = io_conf.get('rundirs_root_path')
     for rd in os.listdir(rundirs_root_path):
-        logger.info(rd_path)
+        logger.info(rd)
         rd_path = os.path.join(rundirs_root_path, rd)
         checks = rd_ready_to_be_preprocessed(user=do_conf.get('user'),
                                              group=do_conf.get('group'),
