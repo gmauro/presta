@@ -22,6 +22,7 @@ class RundirsRootpath(object):
 
         self.ir_conf = conf.get_irods_section()
         self.proc_rundir = args.proc_rundir
+        self.logger("ARGS: {}".format(args))
 
     def check(self):
         def flatten(l):
@@ -52,6 +53,7 @@ class RundirsRootpath(object):
                                                  rd_label=d,
                                                  ir_conf=self.ir_conf)
             if self.proc_rundir:
+                self.logger.info("PROC_RUNDIR")
                 proc_rundir(checks=checks)
 
             checks = flatten(checks)
