@@ -37,6 +37,10 @@ def check_rd_ready_to_be_preprocessed(**kwargs):
                                              path=rd_path,
                                              rd_label=rd,
                                              ir_conf=conf.get_irods_section())
+        while not checks.ready():
+            pass
+        checks = checks.get()
+
         logger.info("CHECKS {}".format(checks))
 
 @app.task(name='presta.app.tasks.proc_rundir')
