@@ -26,7 +26,7 @@ def check_rd_ready_to_be_preprocessed(**kwargs):
     conf = get_conf(logger)
 
     logger.info('TEST CRONTABLE: {}'.format(kwargs.get('rd_path')))
-    logger.info(conf)
+    logger.info(conf, None)
 
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
