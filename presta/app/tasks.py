@@ -37,8 +37,9 @@ def check_rd_ready_to_be_preprocessed(**kwargs):
     #     rd_label=self.rd['label'],
     #     ssht_filename=self.samplesheet['filename'],
     #     ir_conf=self.conf.get_irods_section())
-
-
+    cmd_line = ['presta','check']
+    output = runJob(cmd_line)
+    return True if output else False
 
 
 
