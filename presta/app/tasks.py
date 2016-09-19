@@ -32,16 +32,13 @@ def check_rd_ready_to_be_preprocessed(**kwargs):
     for rd in os.listdir(rundirs_root_path):
         logger.info(rd)
         rd_path = os.path.join(rundirs_root_path, rd)
-        checks = rd_ready_to_be_preprocessed(user=do_conf.get('user'),
+        checks = rd_ready_to_be_preprocessed.si(user=do_conf.get('user'),
                                              group=do_conf.get('group'),
                                              path=rd_path,
                                              rd_label=rd,
                                              ir_conf=conf.get_irods_section())
-        while not checks.ready():
-            pass
-        checks.get()
 
-        logger.info("CHECKS {}".format(checks))
+        logger.info("CHECKS {}".format(checks()))
 
 @app.task(name='presta.app.tasks.proc_rundir')
 def proc_rundir(**kwargs):
