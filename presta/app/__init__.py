@@ -18,7 +18,7 @@ app.conf.update(
         'check-every-three-minutes': {
             'task': 'presta.app.tasks.check_rd_ready_to_be_preprocessed',
             'schedule': crontab(minute='*/1'),
-            'args': 'SEQ_RUNNING',
+            'kwargs': dict(rd_path='SEQ_RUNNING'),
         },
     }
 )

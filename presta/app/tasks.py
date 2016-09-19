@@ -21,8 +21,8 @@ logger = get_task_logger(__name__)
 
 
 @app.task(name='presta.app.tasks.check_rd_ready_to_be_preprocessed')
-def check_rd_ready_to_be_preprocessed(rd_path):
-    logger.info('TEST CRONTABLE: '.format(rd_path))
+def check_rd_ready_to_be_preprocessed(**kwargs):
+    logger.info('TEST CRONTABLE: '.format(kwargs.get('rd_path')))
 
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
