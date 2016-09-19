@@ -28,7 +28,7 @@ def check_rd_ready_to_be_preprocessed(**kwargs):
     output = runJob(cmd_line)
     return True if output else False
 
-@app.task(name='presta.app.tasks.proc_rundir', ignore_result=True)
+@app.task(name='presta.app.tasks.proc_rundir')
 def proc_rundir(**kwargs):
     logger.info('HERE:')
     logger.info('CHECKS: {}'.format(kwargs.get('checks')))
