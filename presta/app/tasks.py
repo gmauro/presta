@@ -23,10 +23,23 @@ logger = get_task_logger(__name__)
 
 @app.task(name='presta.app.tasks.check_rd_ready_to_be_preprocessed')
 def check_rd_ready_to_be_preprocessed(**kwargs):
-    conf = get_conf(logger, None)
-
     logger.info('TEST CRONTABLE: {}'.format(kwargs.get('rd_path')))
-    logger.info(conf)
+    conf = get_conf(logger, None)
+    io_conf = conf.get_io_section()
+
+    rundirs_root_path = io_conf.get('rundirs_root_path')
+    for rd_path in os.listdir(rundirs_root_path):
+        logger.info(rd_path)
+    # rd_status_checks = rd_ready_to_be_preprocessed(
+    #     user=self.user,
+    #     group=self.group,
+    #     path=io_conf.get('rundirs_root_path'),
+    #     rd_label=self.rd['label'],
+    #     ssht_filename=self.samplesheet['filename'],
+    #     ir_conf=self.conf.get_irods_section())
+
+
+
 
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
