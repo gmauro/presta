@@ -27,18 +27,30 @@ def check_rd_ready_to_be_preprocessed(**kwargs):
     conf = get_conf(logger, None)
     io_conf = conf.get_io_section()
     do_conf = conf.get_section('data_ownership')
+    ir_conf = kwargs.get('ir_conf')
+    samplesheet_filename = kwargs.get('ssht_filename', 'SampleSheet.csv')
 
     rundirs_root_path = io_conf.get('rundirs_root_path')
     for rd in os.listdir(rundirs_root_path):
         logger.info(rd)
         rd_path = os.path.join(rundirs_root_path, rd)
-        checks = rd_ready_to_be_preprocessed.si(user=do_conf.get('user'),
-                                             group=do_conf.get('group'),
-                                             path=rd_path,
-                                             rd_label=rd,
-                                             ir_conf=conf.get_irods_section())
+        ipath = os.path.join(ir_conf['runs_collection'],
+                             rd,
+                             samplesheet_filename)
+        task0 = seq_completed.si(rd_path)
+        task1 = check_ownership.si(user=do_conf.get('user'), group=do_conf.get('group'), dir=rd_path)
+        task2 = samplesheet_ready.si(ir_conf=ir_conf, ipath)
+        task3 = check_metadata.si(ir_conf, os.path.dirname(ipath))
 
-        logger.info("CHECKS {}".format(checks()))
+        # checks = rd_ready_to_be_preprocessed.si(user=do_conf.get('user'),
+        #                                      group=do_conf.get('group'),
+        #                                      path=rd_path,
+        #                                      rd_label=rd,
+        #                                      ir_conf=conf.get_irods_section())
+
+        c1 = (task0 | task1 | task2 | task3)
+        checks = c1()
+        logger.info("CHECKS {}".format(checks.get()))
 
 @app.task(name='presta.app.tasks.proc_rundir')
 def proc_rundir(**kwargs):
