@@ -24,7 +24,7 @@ logger = get_task_logger(__name__)
 @app.task(name='presta.app.tasks.check_rd_ready_to_be_preprocessed')
 def check_rd_ready_to_be_preprocessed(**kwargs):
     logger.info('TEST CRONTABLE: {}'.format(kwargs.get('rd_path')))
-    cmd_line = ['presta','check', '--proc_rundir']
+    cmd_line = ['presta', 'check', '--proc_rundir']
     output = runJob(cmd_line)
     return True if output else False
 

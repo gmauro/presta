@@ -22,7 +22,7 @@ class RundirsRootpath(object):
 
         self.ir_conf = conf.get_irods_section()
         self.proc_rundir = args.proc_rundir
-        self.logger("ARGS: {}".format(args))
+
 
     def check(self):
         def flatten(l):
