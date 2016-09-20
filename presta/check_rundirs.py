@@ -52,9 +52,9 @@ class RundirsRootpath(object):
                                                  path=d_path,
                                                  rd_label=d,
                                                  ir_conf=self.ir_conf)
-            if self.proc_rundir:
-                self.logger.info("PROC_RUNDIR")
-                process_rundir.delay(checks=checks)
+
+            if self.proc_rundir and checks[0] and checks[1] and checks[2][0]:
+                process_rundir.delay(rd_path=d_path, rd_label=d)
 
             checks = flatten(checks)
             for i in range(len(checks)):
