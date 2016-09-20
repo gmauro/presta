@@ -54,7 +54,7 @@ class RundirsRootpath(object):
                                                  ir_conf=self.ir_conf)
             if self.proc_rundir:
                 self.logger.info("PROC_RUNDIR")
-                process_rundir(checks=checks)
+                process_rundir.delay(checks=checks)
 
             checks = flatten(checks)
             for i in range(len(checks)):
