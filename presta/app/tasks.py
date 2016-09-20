@@ -29,10 +29,10 @@ def check_rd_ready_to_be_preprocessed(**kwargs):
     return True if output else False
 
 
-@app.task(name='presta.app.tasks.process_rundir',  ignore_result=True)
+@app.task(name='presta.app.tasks.process_rundir')
 def process_rundir(**kwargs):
     rd_path = kwargs.get('rd_path')
-    rd_label = kwargs.get('rd_path')
+    rd_label = kwargs.get('rd_label')
     logger.info('Cron Task: {} is ready to be processed. Start preprocessing...'.format(rd_label))
     cmd_line = ['presta', 'proc', '--rd_path', rd_path]
     output = runJob(cmd_line)
