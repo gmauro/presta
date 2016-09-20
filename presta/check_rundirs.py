@@ -1,7 +1,7 @@
 import os
 
 from presta.utils import path_exists, get_conf
-from presta.app.tasks import rd_ready_to_be_preprocessed, proc_rundir
+from presta.app.tasks import rd_ready_to_be_preprocessed, process_rundir
 
 
 class RundirsRootpath(object):
@@ -54,7 +54,7 @@ class RundirsRootpath(object):
                                                  ir_conf=self.ir_conf)
             if self.proc_rundir:
                 self.logger.info("PROC_RUNDIR")
-                proc_rundir(checks=checks)()
+                process_rundir(checks=checks)
 
             checks = flatten(checks)
             for i in range(len(checks)):

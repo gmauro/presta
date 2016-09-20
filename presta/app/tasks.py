@@ -29,11 +29,11 @@ def check_rd_ready_to_be_preprocessed(**kwargs):
     return True if output else False
 
 
-@app.task(name='presta.app.tasks.proc_rundir')
-def proc_rundir(**kwargs):
+@app.task(name='presta.app.tasks.process_rundir',  ignore_result=True)
+def process_rundir(**kwargs):
     logger.info('HERE:')
     logger.info('CHECKS: {}'.format(kwargs.get('checks')))
-    return True
+
 
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
