@@ -8,17 +8,60 @@ import re
 import string
 import sys
 
+import xml.etree.ElementTree as ET
 from alta import ConfigurationFromYamlFile
 from pkg_resources import resource_filename
 
-
 SAMPLES_WITHOUT_BARCODES = [2, 8]
+DEFAULT_INDEX_CYCLES = dict(index='8', index1='8')
+
+class IEMRunInfoReader:
+    """
+    Illumina Experimental Manager RunInfo xml reader.
+    """
+
+    def __init__(self, f):
+        self.xml_file = f
+        self.tree = ET.parse(self.xml_file)
+        self.root = self.tree.getroot()
+
+    def get_reads(self):
+        reads = [r.attrib for r in self.root.iter('Read')]
+        return reads
+
+    def get_indexed_reads(self):
+        reads = self.get_reads()
+        return filter(lambda item: item["IsIndexedRead"] == "Y", reads)
+
+    def get_index_cycles(self):
+        indexed_reads = self.get_indexed_reads()
+        return dict(
+            index=next((item['NumCycles'] for item in indexed_reads
+                        if item["IsIndexedRead"] == "Y" and item['Number'] == "2"), None),
+            index1=next((item['NumCycles'] for item in indexed_reads
+                         if item["IsIndexedRead"] == "Y" and item['Number'] != "2"), None))
+
+    def get_default_index_cycles(self):
+        return DEFAULT_INDEX_CYCLES
+
+    def set_index_cycles(self, index_cycles, write=True):
+
+        for read in self.root.iter('Read'):
+            if read.attrib["IsIndexedRead"] == "Y":
+                if read.attrib['Number'] == '2':
+                    read.attrib.update(NumCycles=index_cycles.get('index', DEFAULT_INDEX_CYCLES['index']))
+                else:
+                    read.attrib.update(NumCycles=index_cycles.get('index', DEFAULT_INDEX_CYCLES['index']))
+        if write:
+            self.tree.write(self.xml_file)
+
 
 
 class IEMSampleSheetReader(csv.DictReader):
     """
     Illumina Experimental Manager SampleSheet reader.
     """
+
     def __init__(self, f):
         csv.DictReader.__init__(self, f, delimiter=',')
         self.header = ''
@@ -44,12 +87,12 @@ class IEMSampleSheetReader(csv.DictReader):
             n = len(data)
             if n < 1:
                 raise ValueError('mean requires at least one data point')
-            return sum(data)/float(n)
+            return sum(data) / float(n)
 
         def _ss(data):
             """Return sum of square deviations of sequence data."""
             c = mean(data)
-            ss = sum((x-c)**2 for x in data)
+            ss = sum((x - c) ** 2 for x in data)
             return ss
 
         def pstdev(data):
@@ -59,8 +102,8 @@ class IEMSampleSheetReader(csv.DictReader):
             if n < 2:
                 raise ValueError('variance requires at least two data points')
             ss = _ss(data)
-            pvar = ss/n # the population variance
-            return pvar**0.5
+            pvar = ss / n  # the population variance
+            return pvar ** 0.5
 
         lengths = []
         to_be_verified = ['index']
@@ -75,20 +118,14 @@ class IEMSampleSheetReader(csv.DictReader):
 
         return True if pstdev(lengths) == float(0) else False
 
-    def get_body(self, label='Sample_Name', new_value='', replace=True,
-                 trim=True, barcodes_length=dict(index=None, index1=None)):
+    def get_body(self, label='Sample_Name', new_value='', replace=True):
         def sanitize(mystr):
             """
             Sanitize string in accordance with Illumina's documentation
             bcl2fastq2 Conversion Software v2.17 Guide
             """
-            retainlist="_-"
-            return re.sub(r'[^\w'+retainlist+']', '_', mystr)
-
-        def cut(barcode, lenght):
-            if isinstance(lenght, basestring):
-                lenght = int(lenght)-1
-            return barcode[:lenght]
+            retainlist = "_-"
+            return re.sub(r'[^\w' + retainlist + ']', '_', mystr)
 
         body = []
         for i in self.header:
@@ -98,13 +135,11 @@ class IEMSampleSheetReader(csv.DictReader):
         body.append('\n')
 
         to_be_sanitized = ['Sample_Project', 'Sample_Name']
-        to_be_trimmed = ['index', 'index2']
+
         for row in self.data:
             for f in self.data.fieldnames:
                 if replace and f == label:
                     body.append(new_value)
-                elif trim and f in to_be_trimmed:
-                    body.append(cut(row[f],barcodes_length[f]))
                 else:
                     if f in to_be_sanitized:
                         body.append(sanitize(row[f]))
@@ -114,6 +149,19 @@ class IEMSampleSheetReader(csv.DictReader):
             body.append('\n')
 
         return body
+
+    def get_barcode_mask(self):
+        barcodes_mask = dict()
+
+        for row in self.data:
+            if row['Lane'] not in barcodes_mask:
+                barcodes_mask[row['Lane']] = dict(
+                    index=len(row['index']) if 'index' in row else None,
+                    index1=len(row['index1']) if 'index1' in row else None,
+                )
+
+        return barcodes_mask
+
 
 
 def get_conf(logger, config_file):
@@ -167,4 +215,3 @@ class WeightedPath(object):
     def __cmp__(self, other):
         if hasattr(other, 'weight'):
             return self.weight.__cmp__(other.weight)
-

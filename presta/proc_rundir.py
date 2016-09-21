@@ -6,7 +6,7 @@ from presta.utils import path_exists, get_conf
 from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
     rd_ready_to_be_preprocessed, \
     copy_samplesheet_from_irods, copy_run_info_to_irods, copy_run_parameters_to_irods, \
-    replace_values_into_samplesheet, sanitize_metadata
+    replace_values_into_samplesheet, sanitize_metadata, replace_index_cycles_into_run_info
 from celery import chain
 
 
@@ -45,12 +45,17 @@ class PreprocessingWorkflow(object):
                     'filename': 'RunInfo.xml'}
         run_info['file_path'] = os.path.join(run_info['basepath'],
                                              run_info['filename'])
+        run_info['file_apath'] = os.path.join(apath,
+                                              run_info['filename'])
         self.run_info = run_info
 
         run_parameters = {'basepath': os.path.join(rpath),
                           'filename': 'runParameters.xml'}
         run_parameters['file_path'] = os.path.join(run_parameters['basepath'],
                                                    run_parameters['filename'])
+        run_parameters['file_apath'] = os.path.join(apath,
+                                                    run_parameters['filename'])
+
         self.run_parameters = run_parameters
 
         do_conf = conf.get_section('data_ownership')
@@ -89,7 +94,7 @@ class PreprocessingWorkflow(object):
         check = rd_status_checks[0] and rd_status_checks[1] and \
                 rd_status_checks[2][0]
 
-        check_barcode_trimming = not rd_status_checks[2][1] and not self.no_barcode_trimming
+        barcodes_have_same_size = rd_status_checks[2][1]
         check_sanitize_metadata = not rd_status_checks[3]
 
         if not check:
@@ -108,7 +113,6 @@ class PreprocessingWorkflow(object):
 
         irods_task = chain(
             sanitize_metadata.si(conf=self.conf.get_irods_section(),
-                                 run_info_path=self.run_info['file_path'],
                                  ssht_filename=self.samplesheet['filename'],
                                  rd_label=self.rd['label'],
                                  sanitize=check_sanitize_metadata
@@ -136,7 +140,6 @@ class PreprocessingWorkflow(object):
             replace_values_into_samplesheet.si(conf=self.conf.get_irods_section(),
                                                ssht_path=self.samplesheet['file_path'],
                                                rd_label=self.rd['label'],
-                                               trim_barcodes=check_barcode_trimming,
                                                overwrite_samplesheet=not self.no_overwrite_samplesheet
                                                ),
 
@@ -152,6 +155,12 @@ class PreprocessingWorkflow(object):
         pipeline = chain(
             irods_task,
             samplesheet_task,
+
+            replace_index_cycles_into_run_info.si(conf=self.conf.get_irods_section(),
+                                                  barcodes_have_same_size=barcodes_have_same_size,
+                                                  run_info_path=self.run_info['file_path'],
+                                                  rd_label=self.rd['label']),
+
             move.si(self.rd['rpath'], self.rd['apath']),
             bcl2fastq.si(rd_path=self.rd['apath'],
                          ds_path=self.ds['path'],
@@ -160,7 +169,14 @@ class PreprocessingWorkflow(object):
                          barcode_mismatches=self.barcode_mismatches,
                          batch_queuing=self.batch_queuing,
                          queue_spec=self.queues_conf.get('low')),
-            qc_task).delay()
+
+            replace_index_cycles_into_run_info.si(conf=self.conf.get_irods_section(),
+                                               barcodes_have_same_size=barcodes_have_same_size,
+                                               run_info_path=self.run_info['file_apath'],
+                                               rd_label=self.rd['label']),
+
+            qc_task,
+        ).delay()
 
 
 help_doc = """
