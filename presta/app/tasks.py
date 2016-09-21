@@ -43,6 +43,7 @@ def process_rundir(**kwargs):
     rd_path = kwargs.get('rd_path')
     rd_label = kwargs.get('rd_label')
     logger.info('Cron Task: {} is ready to be processed. Start preprocessing...'.format(rd_label))
+    task_sent_handler()
     #cmd_line = ['presta', 'proc', '--rd_path', rd_path]
     #output = runJob(cmd_line)
     #return True if output else False
