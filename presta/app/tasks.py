@@ -3,7 +3,6 @@ from __future__ import absolute_import
 from . import app
 from alta.objectstore import build_object_store
 from alta.utils import ensure_dir
-from presta.utils import path_exists, get_conf, paths_setup
 from celery import group
 import drmaa
 from grp import getgrgid
@@ -17,17 +16,27 @@ import shutil
 import subprocess
 
 from celery.utils.log import get_task_logger
+from celery.signals import after_task_publish
 
 logger = get_task_logger(__name__)
+
+@after_task_publish.connect(sender='presta.app.tasks.process_rundir')
+def task_sent_handler(sender=None, body=None, **kwargs):
+    print('after_task_publish for task id {body[id]}'.format(
+        body=body,
+    ))
+    logger.info('after_task_publish for task id {body[id]}'.format(
+        body=body,
+    ))
 
 
 @app.task(name='presta.app.tasks.check_rd_ready_to_be_preprocessed')
 def check_rd_ready_to_be_preprocessed(**kwargs):
     logger.info('Cron Task: searching for run ready to be preprocessed...')
-    cmd_line = ['presta', 'check', '--proc_rundir']
-    output = runJob(cmd_line)
-    return True if output else False
-
+    #cmd_line = ['presta', 'check', '--proc_rundir']
+    #output = runJob(cmd_line)
+    #return True if output else False
+    return True
 
 @app.task(name='presta.app.tasks.process_rundir')
 def process_rundir(**kwargs):
