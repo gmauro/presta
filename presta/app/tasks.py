@@ -33,20 +33,20 @@ def task_sent_handler(sender=None, body=None, **kwargs):
 @app.task(name='presta.app.tasks.check_rd_ready_to_be_preprocessed')
 def check_rd_ready_to_be_preprocessed(**kwargs):
     logger.info('Cron Task: searching for run ready to be preprocessed...')
-    #cmd_line = ['presta', 'check', '--proc_rundir']
-    #output = runJob(cmd_line)
-    #return True if output else False
-    return True
+    cmd_line = ['presta', 'check', '--proc_rundir']
+    output = runJob(cmd_line)
+    return True if output else False
+
 
 @app.task(name='presta.app.tasks.process_rundir')
 def process_rundir(**kwargs):
     rd_path = kwargs.get('rd_path')
     rd_label = kwargs.get('rd_label')
     logger.info('Cron Task: {} is ready to be processed. Start preprocessing...'.format(rd_label))
-    cmd_line = ['presta', 'proc', '--rd_path', rd_path]
-    output = runJob(cmd_line)
-    return True if output else False
-
+    #cmd_line = ['presta', 'proc', '--rd_path', rd_path]
+    #output = runJob(cmd_line)
+    #return True if output else False
+    return True
 
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
