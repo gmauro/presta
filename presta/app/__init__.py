@@ -15,7 +15,8 @@ app.conf.update(
         # Execute every three hours: midnight, 3am, 6am, 9am, noon, 3pm, 6pm, 9pm.
         'check_rd_ready_to_be_preprocessed': {
             'task': 'presta.app.tasks.check_rd_ready_to_be_preprocessed',
-            'schedule': crontab(minute=0, hour='*/3'),
+            #'schedule': crontab(minute=0, hour='*/3'),
+            'schedule': crontab(minute='*/1'),
             'kwargs': dict(),
         },
     }
