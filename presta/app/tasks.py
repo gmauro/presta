@@ -16,24 +16,13 @@ import shutil
 import subprocess
 
 from celery.utils.log import get_task_logger
-from celery.signals import after_task_publish
 
 logger = get_task_logger(__name__)
-
-@after_task_publish.connect(sender='presta.app.tasks.process_rundir')
-def task_sent_handler(sender=None, body=None, **kwargs):
-    print('after_task_publish for task id {body[id]}'.format(
-        body=body,
-    ))
-    logger.info('after_task_publish for task id {body[id]}'.format(
-        body=body,
-    ))
-
 
 @app.task(name='presta.app.tasks.check_rd_ready_to_be_preprocessed')
 def check_rd_ready_to_be_preprocessed(**kwargs):
     logger.info('Cron Task: searching for run ready to be preprocessed...')
-    cmd_line = ['presta', 'check', '--proc_rundir']
+    cmd_line = ['presta', 'check', '--proc_rundir', '--export_qc']
     output = runJob(cmd_line)
     return True if output else False
 
@@ -43,11 +32,9 @@ def process_rundir(**kwargs):
     rd_path = kwargs.get('rd_path')
     rd_label = kwargs.get('rd_label')
     logger.info('Cron Task: {} is ready to be processed. Start preprocessing...'.format(rd_label))
-    task_sent_handler()
-    #cmd_line = ['presta', 'proc', '--rd_path', rd_path]
-    #output = runJob(cmd_line)
-    #return True if output else False
-    return True
+    cmd_line = ['presta', 'proc', '--rd_path', rd_path]
+    output = runJob(cmd_line)
+    return True if output else False
 
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
@@ -169,17 +156,20 @@ def copy(src, dest):
 
 
 @app.task(name='presta.app.tasks.copy_qc_dirs', ignore_result=True)
-def copy_qc_dirs(src, dest):
-    dirs = ['Stats', 'Reports', 'fastqc']
-    ensure_dir(dest)
-    task0 = copy.si(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
-    task1 = copy.si(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
-    task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
+def copy_qc_dirs(src, dest, copy_qc=True):
+    if copy_qc:
+        dirs = ['Stats', 'Reports', 'fastqc']
+        ensure_dir(dest)
+        task0 = copy.si(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
+        task1 = copy.si(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
+        task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
 
-    job = group(task0, task1, task2)()
-    while job.waiting():
-        pass
-    return job.join()
+        job = group(task0, task1, task2)()
+        # while job.waiting():
+        #     pass
+        return job.join()
+
+    return None
 
 
 @app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)
@@ -362,7 +352,7 @@ def bcl2fastq(**kwargs):
                                     samplesheet_arg, ' '.join(options)]))
     logger.info('Executing {}'.format(cmd_line))
 
-    if submit_to_batch_scheduler:
+    if not submit_to_batch_scheduler:
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
 
@@ -406,7 +396,7 @@ def fastqc(fq_list, **kwargs):
                                      fq_list_arg]))
     logger.info('Executing {}'.format(cmd_line))
 
-    if submit_to_batch_scheduler:
+    if not submit_to_batch_scheduler:
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
 
