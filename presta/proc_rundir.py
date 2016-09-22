@@ -147,10 +147,10 @@ class PreprocessingWorkflow(object):
         )
 
         qc_task = chain(rd_collect_fastq.si(ds_path=self.ds['path']),
-                        qc_runner.si(outdir=self.fqc['path'],
+                        qc_runner.s(outdir=self.fqc['path'],
                                     batch_queuing=self.batch_queuing,
                                     queue_spec=self.queues_conf.get('low')),
-                        copy_qc_dirs.s(src=self.fqc['path'],
+                        copy_qc_dirs.si(src=self.fqc['path'],
                                        dest=self.fqc['export_path'],
                                        copy_qc=self.copy_qc),
                         )
