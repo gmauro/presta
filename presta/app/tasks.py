@@ -167,8 +167,8 @@ def copy_qc_dirs(src, dest, copy_qc=True):
         task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
 
         job = group(task0, task1, task2)()
-        while job.waiting():
-            pass
+        # while job.waiting():
+        #     pass
         return job.join()
 
     return None
