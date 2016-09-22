@@ -45,6 +45,7 @@ def rd_collect_fastq(**kwargs):
     for (localroot, dirnames, filenames) in os.walk(path):
         for f in filenames:
             if f[-3:] == '.gz':
+                logger.info('FASTQ = {}'.format(f))
                 results.append(os.path.join(localroot, f))
     return results
 
