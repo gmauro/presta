@@ -19,10 +19,11 @@ from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
 
+
 @app.task(name='presta.app.tasks.check_rd_ready_to_be_preprocessed')
 def check_rd_ready_to_be_preprocessed(**kwargs):
     logger.info('Cron Task: searching for run ready to be preprocessed...')
-    cmd_line = ['presta', 'check', '--proc_rundir', '--export_qc']
+    cmd_line = ['presta', 'check', '--proc_rundir']
     output = runJob(cmd_line)
     return True if output else False
 
@@ -32,7 +33,7 @@ def process_rundir(**kwargs):
     rd_path = kwargs.get('rd_path')
     rd_label = kwargs.get('rd_label')
     logger.info('Cron Task: {} is ready to be processed. Start preprocessing...'.format(rd_label))
-    cmd_line = ['presta', 'proc', '--rd_path', rd_path]
+    cmd_line = ['presta', 'proc', '--rd_path', rd_path, '--export_qc']
     output = runJob(cmd_line)
     return True if output else False
 
