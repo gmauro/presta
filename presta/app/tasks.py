@@ -116,6 +116,7 @@ def check_metadata(ir_conf, ipath, get_metadata=False):
 
     exists, iobj = ir.exists(ipath, delivery=True)
     ir.close_session()
+
     if get_metadata:
         return exists and len(iobj.metadata.items()) > 0, retrieve_imetadata(iobj)
 
