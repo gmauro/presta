@@ -74,7 +74,7 @@ def rd_ready_to_be_preprocessed(**kwargs):
     pipeline = group(task0, task1, task2, task3)()
 
     while pipeline.waiting():
-         pass
+          pass
     return pipeline.join()
 
 
@@ -88,6 +88,7 @@ def samplesheet_ready(ir_conf, ipath):
                             zone=ir_conf['zone'])
 
     exists, iobj = ir.exists(ipath, delivery=True)
+    ir.sess.cleanup()
     if exists:
         with iobj.open('r') as f:
             samplesheet = IEMSampleSheetReader(f)
@@ -114,6 +115,7 @@ def check_metadata(ir_conf, ipath, get_metadata=False):
                             zone=ir_conf['zone'])
 
     exists, iobj = ir.exists(ipath, delivery=True)
+    ir.sess.cleanup()
 
     if get_metadata:
         return exists and len(iobj.metadata.items()) > 0, retrieve_imetadata(iobj)
@@ -221,7 +223,7 @@ def copy_samplesheet_from_irods(**kwargs):
         logger.info('Coping samplesheet from iRODS {} to FS {}'.format(
             ipath, samplesheet_file_path))
         ir.get_object(ipath, dest_path=samplesheet_file_path)
-
+        ir.sess.cleanup()
     return samplesheet_file_path
 
 
@@ -427,6 +429,7 @@ def __set_imetadata(ir_conf, ipath, imetadata):
                                meta=(m.get('name'),
                                      m.get('value') if len(m.get('value')) > 0 else None,
                                      m.get('units')))
+        ir.sess.cleanup()
 
 
 def __copy_file_into_irods(**kwargs):
@@ -444,6 +447,7 @@ def __copy_file_into_irods(**kwargs):
     logger.info('Coping from FS {} to iRODS {}'.format(file_path, irods_path))
 
     ir.put_object(source_path=file_path, dest_path=irods_path, force=True)
+    ir.sess.cleanup()
 
 
 def __get_index_cycles_from_metadata(ir_conf, rundir_label):
