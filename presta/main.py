@@ -5,6 +5,7 @@ from importlib import import_module
 
 SUBMOD_NAMES = [
     "check_rundirs",
+    "delivery",
     "proc_rundir",
     "qc"
 ]

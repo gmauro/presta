@@ -1,7 +1,7 @@
 import os
 
 from presta.utils import path_exists, get_conf
-from presta.app.tasks import rd_ready_to_be_preprocessed
+from presta.app.tasks import rd_ready_to_be_preprocessed, process_rundir
 
 
 class RundirsRootpath(object):
@@ -21,37 +21,54 @@ class RundirsRootpath(object):
         self.group = do_conf.get('group')
 
         self.ir_conf = conf.get_irods_section()
+        self.proc_rundir = args.proc_rundir
+
 
     def check(self):
+        def flatten(l):
+            out = []
+            for item in l:
+                if isinstance(item, (list, tuple)):
+                    out.extend(flatten(item))
+                else:
+                    out.append(item)
+            return out
+
         path_exists(self.root_path, self.logger)
         localroot, dirnames, filenames = os.walk(self.root_path).next()
-        running = []
-        completed = []
-        ownership = []
+
+        positive_labels = ['finished', "ownership ok" ,
+                           'SampleSheet found', 'Barcodes have the same size', 'Metadata found']
+        negative_labels = ['running ', "waiting for ownership's modification",
+                           'SampleSheet not found',
+                           "Barcodes don't have the same size", 'Metadata not found']
+
+        dir_dict = dict()
         for d in dirnames:
+            dir_dict[d] = []
             d_path = os.path.join(self.root_path, d)
             checks = rd_ready_to_be_preprocessed(user=self.user,
                                                  group=self.group,
                                                  path=d_path,
                                                  rd_label=d,
                                                  ir_conf=self.ir_conf)
-            if checks[0]:
-                if checks[1]:
-                    completed.append(d)
+
+            if self.proc_rundir and checks[0] and checks[1] and checks[2][0]:
+                process_rundir.delay(rd_path=d_path, rd_label=d)
+
+            checks = flatten(checks)
+            for i in range(len(checks)):
+                if checks[i]:
+                    dir_dict[d].append(positive_labels[i])
                 else:
-                    ownership.append(d)
-            else:
-                running.append(d)
+                    dir_dict[d].append(negative_labels[i])
+
         self.logger.info('Checking rundirs in: {}'.format(self.root_path))
-        self.logger.info('Rundirs running:')
-        for d in running:
-            self.logger.info('{}'.format(d))
-        self.logger.info("Rundirs waiting for ownership's modification:")
-        for d in ownership:
-                self.logger.info('{}'.format(d))
-        self.logger.info('Rundirs ready to be pre-processed:')
-        for d in completed:
-            self.logger.info('{}'.format(d))
+
+        for d, labels in dir_dict.iteritems():
+            self.logger.info(' ')
+            self.logger.info('Rundir {}'.format(d))
+            self.logger.info('{}'.format(labels))
 
 
 help_doc = """
@@ -62,6 +79,8 @@ Starting from a root path, print the state of all the rundirs found.
 def make_parser(parser):
     parser.add_argument('--root_path', metavar="PATH",
                         help="alternative rundirs root path")
+    parser.add_argument('--proc_rundir', action='store_true',
+                        help='process rundir if ready')
 
 
 def implementation(logger, args):
