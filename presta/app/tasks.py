@@ -73,8 +73,8 @@ def rd_ready_to_be_preprocessed(**kwargs):
 
     pipeline = group(task0, task1, task2, task3)()
 
-    while pipeline.waiting():
-          pass
+    # while pipeline.waiting():
+    #       pass
     return pipeline.join()
 
 
