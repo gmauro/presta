@@ -346,7 +346,9 @@ def bcl2fastq(**kwargs):
 
     barcode_mask = samplesheet.get_barcode_mask()
     for lane, barcode_length in barcode_mask.items():
-        if barcode_length['index1'] is None or barcode_length['index1'] in ['None']:
+        if barcode_length['index'] is None or barcode_length['index'] in ['None']:
+            continue
+        elif barcode_length['index1'] is None or barcode_length['index1'] in ['None']:
             options.append("--use-bases-mask {}:Y*,I{}n*,Y*".format(lane, barcode_length['index']))
         else:
             options.append(
