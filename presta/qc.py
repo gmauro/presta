@@ -90,15 +90,6 @@ def make_parser(parser):
     parser.add_argument('--rerun', action='store_true',
                         help='force generating Fastqc reports')
 
-    parser.add_argument('--batch_queuing', dest='batch_queuing',
-                        action='store_true',
-                        help='Batch queque')
-    parser.add_argument('--no_batch_queuing', dest='batch_queuing',
-                        action='store_false',
-                        help='Not batch queque')
-
-    parser.set_defaults(batch_queuing=True)
-
 
 def implementation(logger, args):
     workflow = QcWorkflow(args=args, logger=logger)
