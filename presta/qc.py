@@ -59,7 +59,7 @@ class QcWorkflow(object):
                 "Coping qc dirs from {} to {}".format(self.input_path,
                                                       self.output_path)]
 
-        if path_exists(self.fqc_path, self.logger, force=False) and len(os.listdir(self.fqc_path)) \
+        if path_exists(self.fqc_path, self.logger, force=False) and len(os.listdir(self.fqc_path)) > 0 \
                 and not self.rerun:
 
             self.logger.info(msgs[1])
