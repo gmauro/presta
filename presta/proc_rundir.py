@@ -213,7 +213,15 @@ def make_parser(parser):
     parser.add_argument("--barcode_mismatches", type=int, choices=[0, 1, 2],
                         default=1, help='Number of allowed mismatches per index')
 
+    parser.add_argument('--batch_queuing', dest='batch_queuing',
+                        action='store_true',
+                        help='Batch queque')
+    parser.add_argument('--no_batch_queuing', dest='batch_queuing',
+                        action='store_false',
+                        help='Not batch queque')
+
     parser.set_defaults(overwrite_samplesheet=True)
+    parser.set_defaults(batch_queuing=True)
 
 
 def implementation(logger, args):
