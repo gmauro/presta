@@ -21,6 +21,7 @@ class QcWorkflow(object):
         input_path = args.ds_path
         output_path = args.export_path
 
+
         if r_dir_label or (input_path and output_path):
             pass
         else:
@@ -49,6 +50,7 @@ class QcWorkflow(object):
         self.output_path = output_path
 
         self.fqc_path = os.path.join(self.input_path, fqc_dir_label)
+        self.rerun = args.rerun
 
     def run(self):
 
@@ -56,7 +58,13 @@ class QcWorkflow(object):
         msgs = ["Generating Fastqc reports",
                 "Coping qc dirs from {} to {}".format(self.input_path,
                                                       self.output_path)]
-        if not path_exists(self.fqc_path, self.logger, force=False):
+
+        if path_exists(self.fqc_path, self.logger, force=False) and len(os.listdir(self.fqc_path)) > 0 \
+                and not self.rerun:
+
+            self.logger.info(msgs[1])
+            copy_task.delay()
+        else:
             self.logger.info("{} and {}".format(msgs[0], msgs[1]))
             ensure_dir(self.fqc_path)
             qc_task = chain(rd_collect_fastq.si(ds_path=self.input_path),
@@ -65,9 +73,6 @@ class QcWorkflow(object):
                                         queue_spec=self.queues_conf.get('q_fastqc')),
                             copy_task
                             ).delay()
-        else:
-            self.logger.info(msgs[1])
-            copy_task.delay()
 
 
 help_doc = """
@@ -82,6 +87,8 @@ def make_parser(parser):
                         help="Where datasets are stored")
     parser.add_argument('--export_path', type=str, metavar="PATH",
                         help='Where qc reports have to be stored')
+    parser.add_argument('--rerun', action='store_true',
+                        help='force generating Fastqc reports')
 
 
 def implementation(logger, args):
