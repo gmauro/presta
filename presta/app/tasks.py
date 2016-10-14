@@ -174,10 +174,10 @@ def copy_qc_dirs(src, dest, copy_qc=True):
         task1 = copy.si(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
         task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
 
-        job = group(task0, task1, task2)()
+        job = group(task0, task1, task2)
         # while job.waiting():
         #     pass
-        return job
+        return job.join()
 
     return None
 
