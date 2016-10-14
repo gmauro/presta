@@ -72,23 +72,27 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task3 = check_metadata.si(ir_conf, os.path.dirname(ipath))
 
     pipeline = group(task0, task1, task2, task3)()
-
-    while pipeline.waiting():
-          pass
+    #
+    # while pipeline.waiting():
+    #       pass
     return pipeline.join()
 
 
 @app.task(name='presta.app.tasks.samplesheet_ready')
 def samplesheet_ready(ir_conf, ipath):
+
     ir = build_object_store(store='irods',
                             host=ir_conf['host'],
                             port=ir_conf['port'],
                             user=ir_conf['user'],
                             password=ir_conf['password'].encode('ascii'),
                             zone=ir_conf['zone'])
+    try:
+        exists, iobj = ir.exists(ipath, delivery=True)
+        ir.sess.cleanup()
+    except:
+        ir.sess.cleanup()
 
-    exists, iobj = ir.exists(ipath, delivery=True)
-    ir.sess.cleanup()
     if exists:
         with iobj.open('r') as f:
             samplesheet = IEMSampleSheetReader(f)
@@ -113,9 +117,11 @@ def check_metadata(ir_conf, ipath, get_metadata=False):
                             user=ir_conf['user'],
                             password=ir_conf['password'].encode('ascii'),
                             zone=ir_conf['zone'])
-
-    exists, iobj = ir.exists(ipath, delivery=True)
-    ir.sess.cleanup()
+    try:
+        exists, iobj = ir.exists(ipath, delivery=True)
+        ir.sess.cleanup()
+    except:
+        ir.sess.cleanup()
 
     if get_metadata:
         return exists and len(iobj.metadata.items()) > 0, retrieve_imetadata(iobj)
@@ -169,8 +175,8 @@ def copy_qc_dirs(src, dest, copy_qc=True):
         task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
 
         job = group(task0, task1, task2)()
-        while job.waiting():
-            pass
+        # while job.waiting():
+        #     pass
         return job.join()
 
     return None
@@ -222,8 +228,11 @@ def copy_samplesheet_from_irods(**kwargs):
                              samplesheet_filename)
         logger.info('Coping samplesheet from iRODS {} to FS {}'.format(
             ipath, samplesheet_file_path))
-        ir.get_object(ipath, dest_path=samplesheet_file_path)
-        ir.sess.cleanup()
+        try:
+            ir.get_object(ipath, dest_path=samplesheet_file_path)
+            ir.sess.cleanup()
+        except:
+            ir.sess.cleanup()
     return samplesheet_file_path
 
 
@@ -447,9 +456,11 @@ def __copy_file_into_irods(**kwargs):
                             zone=ir_conf['zone'])
 
     logger.info('Coping from FS {} to iRODS {}'.format(file_path, irods_path))
-
-    ir.put_object(source_path=file_path, dest_path=irods_path, force=True)
-    ir.sess.cleanup()
+    try:
+        ir.put_object(source_path=file_path, dest_path=irods_path, force=True)
+        ir.sess.cleanup()
+    except:
+        ir.sess.cleanup()
 
 
 def __get_index_cycles_from_metadata(ir_conf, rundir_label):
