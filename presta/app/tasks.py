@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+
 from . import app
 from alta.objectstore import build_object_store
 from alta.utils import ensure_dir
@@ -71,9 +72,9 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task3 = check_metadata.si(ir_conf, os.path.dirname(ipath))
 
     pipeline = group(task0, task1, task2, task3)()
-    #
-    # while pipeline.waiting():
-    #       pass
+
+    while pipeline.waiting():
+          pass
     return pipeline.join()
 
 
@@ -174,8 +175,8 @@ def copy_qc_dirs(src, dest, copy_qc=True):
         task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
 
         job = group(task0, task1, task2)()
-        # while job.waiting():
-        #     pass
+        while job.waiting():
+            pass
         return job.join()
 
     return None
