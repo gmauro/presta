@@ -177,7 +177,7 @@ def copy_qc_dirs(src, dest, copy_qc=True):
         job = group(task0, task1, task2)()
         # while job.waiting():
         #     pass
-        return job.join()
+        return job
 
     return None
 
