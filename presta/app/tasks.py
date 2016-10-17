@@ -518,7 +518,12 @@ def runGEJob(jt_attr):
 
 def runJob(cmd):
     try:
-        subprocess.check_output(cmd)
+        # subprocess.check_output(cmd)
+        process = subprocess.Popen(cmd,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
+        output = process.communicate()[0]
+        ret = process.wait()
         return True
     except subprocess.CalledProcessError as e:
         logger.info(e)
