@@ -71,12 +71,14 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task2 = samplesheet_ready.si(ir_conf, ipath)
     task3 = check_metadata.si(ir_conf, os.path.dirname(ipath))
 
-    pipeline = group(task0, task1, task2, task3)()
+    pipeline = group([task0, task1, task2, task3])
 
-    while pipeline.waiting():
-          pass
-    return pipeline.join()
+    # while pipeline.waiting():
+    #       pass
 
+    #return pipeline.join()
+    result = pipeline.apply_async()
+    return result.join()
 
 @app.task(name='presta.app.tasks.samplesheet_ready')
 def samplesheet_ready(ir_conf, ipath):
