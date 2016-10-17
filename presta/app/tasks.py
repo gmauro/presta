@@ -71,12 +71,10 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task2 = samplesheet_ready.si(ir_conf, ipath)
     task3 = check_metadata.si(ir_conf, os.path.dirname(ipath))
 
-    pipeline = group(task0, task1, task2, task3)()
+    pipeline = group([task0, task1, task2, task3])
 
-    while pipeline.waiting():
-          pass
-    return pipeline.join()
-
+    result = pipeline.apply_async()
+    return result.join()
 
 @app.task(name='presta.app.tasks.samplesheet_ready')
 def samplesheet_ready(ir_conf, ipath):
@@ -174,10 +172,10 @@ def copy_qc_dirs(src, dest, copy_qc=True):
         task1 = copy.si(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
         task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
 
-        job = group(task0, task1, task2)()
-        while job.waiting():
-            pass
-        return job.join()
+        job = group([task0, task1, task2])
+
+        result = job.apply_async()
+        return result.join()
 
     return None
 
