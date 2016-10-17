@@ -141,10 +141,16 @@ def check_ownership(**kwargs):
     d = kwargs.get('dir')
 
     def find_owner(directory):
-        return getpwuid(os.stat(directory).st_uid).pw_name
+        try:
+            return getpwuid(os.stat(directory).st_uid).pw_name
+        except:
+            return ''
 
     def find_group(directory):
-        return getgrgid(os.stat(directory).st_gid).gr_name
+        try:
+            return getgrgid(os.stat(directory).st_gid).gr_name
+        except:
+            return ''
 
     return True if user == find_owner(d) and grp == find_group(d) else False
 
