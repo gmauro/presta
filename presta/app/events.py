@@ -29,5 +29,5 @@ def rd_ready(params):
 
 
 @app.task(name='presta.app.events.emit_event')
-def emit_event(event, params=None):
+def emit_event(event, params):
     tasks[event](params)
