@@ -84,7 +84,7 @@ def make_parser(parser):
     parser.add_argument('--root_path', metavar="PATH",
                         help="alternative rundirs root path")
     parser.add_argument('--emit_events', action='store_true',
-                        help='sends event message to consumer')
+                        help='sends event to router')
 
 
 def implementation(logger, args):

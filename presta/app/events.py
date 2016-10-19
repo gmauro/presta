@@ -23,7 +23,7 @@ def rd_ready(params):
     rd_path = params.get('rd_path')
     rd_label = params.get('rd_label')
     logger.info('{} is ready to be processed. Start preprocessing...'.format(rd_label))
-    cmd_line = ['presta', 'proc', '--rd_path', rd_path, '--export_qc']
+    cmd_line = ['presta', 'proc', '--rd_path', rd_path, '--emit_events']
     output = runJob(cmd_line, logger)
     return True if output else False
 
