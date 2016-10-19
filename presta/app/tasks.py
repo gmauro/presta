@@ -8,35 +8,17 @@ import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
 from presta.utils import IEMRunInfoReader
+from presta.utils import runJob
+
 from pwd import getpwuid
 import errno
 import os
 import shlex
 import shutil
-import subprocess
 
 from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
-
-
-@app.task(name='presta.app.tasks.check_rd_ready_to_be_preprocessed')
-def check_rd_ready_to_be_preprocessed(**kwargs):
-    logger.info('Cron Task: searching for run ready to be preprocessed...')
-    cmd_line = ['presta', 'check', '--proc_rundir']
-    output = runJob(cmd_line)
-    return True if output else False
-
-
-@app.task(name='presta.app.tasks.process_rundir')
-def process_rundir(**kwargs):
-    rd_path = kwargs.get('rd_path')
-    rd_label = kwargs.get('rd_label')
-    logger.info('Cron Task: {} is ready to be processed. Start preprocessing...'.format(rd_label))
-    cmd_line = ['presta', 'proc', '--rd_path', rd_path, '--export_qc']
-    output = runJob(cmd_line)
-    return True if output else False
-
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
 def rd_collect_fastq(**kwargs):
@@ -382,7 +364,7 @@ def bcl2fastq(**kwargs):
               }
         output = runGEJob(jt)
     else:
-        output = runJob(cmd_line)
+        output = runJob(cmd_line, logger)
 
     return True if output else False
 
@@ -426,7 +408,7 @@ def fastqc(fq_list, **kwargs):
               }
         output = runGEJob(jt)
     else:
-        output = runJob(cmd_line)
+        output = runJob(cmd_line, logger)
 
     return True if output else False
 
@@ -516,19 +498,3 @@ def runGEJob(jt_attr):
     return retval.hasExited
 
 
-def runJob(cmd):
-    try:
-        # subprocess.check_output(cmd)
-        process = subprocess.Popen(cmd,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
-        output = process.communicate()[0]
-        ret = process.wait()
-        return True
-    except subprocess.CalledProcessError as e:
-        logger.info(e)
-        if e.output:
-            logger.info("command output: %s", e.output)
-        else:
-            logger.info("no command output available")
-        return False

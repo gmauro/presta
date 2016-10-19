@@ -1,7 +1,8 @@
 import os
 
 from presta.utils import path_exists, get_conf
-from presta.app.tasks import rd_ready_to_be_preprocessed, process_rundir
+from presta.app.tasks import rd_ready_to_be_preprocessed
+from presta.app.events import emit_event
 
 
 class RundirsRootpath(object):
@@ -21,8 +22,7 @@ class RundirsRootpath(object):
         self.group = do_conf.get('group')
 
         self.ir_conf = conf.get_irods_section()
-        self.proc_rundir = args.proc_rundir
-
+        self.emit_events = args.emit_events
 
     def check(self):
         def flatten(l):
@@ -53,8 +53,10 @@ class RundirsRootpath(object):
                                                  rd_label=d,
                                                  ir_conf=self.ir_conf)
 
-            if self.proc_rundir and checks[0] and checks[1] and checks[2][0]:
-                process_rundir.delay(rd_path=d_path, rd_label=d)
+            ready_to_be_preprocessed = checks[0] and checks[1] and checks[2][0]
+
+            if self.emit_events and ready_to_be_preprocessed:
+                emit_event(event='rd_ready_to_be_processed', rd_path=d_path, rd_label=d).apply_async()
 
             checks = flatten(checks)
             for i in range(len(checks)):
@@ -79,8 +81,8 @@ Starting from a root path, print the state of all the rundirs found.
 def make_parser(parser):
     parser.add_argument('--root_path', metavar="PATH",
                         help="alternative rundirs root path")
-    parser.add_argument('--proc_rundir', action='store_true',
-                        help='process rundir if ready')
+    parser.add_argument('--emit_events', action='store_true',
+                        help='sends event message to consumer')
 
 
 def implementation(logger, args):
