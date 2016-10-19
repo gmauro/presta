@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 
 from . import app
-from celery.utils.log import get_task_logger
-from presta.utils import runJob
+from presta.app.tasks import run_presta_check, run_presta_proc
 
+from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 
 
@@ -13,19 +13,22 @@ task = lambda f: tasks.setdefault(f.__name__, f)
 
 @task
 def check_rd(params):
-    cmd_line = ['presta', 'check', '--emit_events']
-    output = runJob(cmd_line, logger)
-    return True if output else False
+    logger.info('Received event {}. Run {}'.format(
+        check_rd.__name__,
+        run_presta_check.__name__)
+    )
+
+    run_presta_check.si(params).delay()
 
 
 @task
 def rd_ready(params):
-    rd_path = params.get('rd_path')
-    rd_label = params.get('rd_label')
-    logger.info('{} is ready to be processed. Start preprocessing...'.format(rd_label))
-    cmd_line = ['presta', 'proc', '--rd_path', rd_path, '--emit_events']
-    output = runJob(cmd_line, logger)
-    return True if output else False
+    logger.info('Received event {}. Run {}'.format(
+        rd_ready.__name__,
+        run_presta_proc.__name__)
+    )
+
+    run_presta_proc.si(params).delay()
 
 
 @app.task(name='presta.app.events.emit_event')

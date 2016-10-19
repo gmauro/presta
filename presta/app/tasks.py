@@ -20,6 +20,42 @@ from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
 
+
+@app.task(name='presta.app.tasks.run_presta_check')
+def run_presta_check(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    root_path = kwargs.get('root_path')
+    cmd_line = ['presta', 'check']
+
+    if emit_events:
+        cmd_line.append('--emit_events')
+    if root_path:
+        cmd_line.extend(['--root_path', root_path])
+
+    result = runJob(cmd_line, logger)
+    return True if result else False
+
+@app.task(name='presta.app.tasks.run_presta_proc')
+def run_presta_proc(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    output = kwargs.get('output')
+    rd_path = kwargs.get('rd_path')
+
+    cmd_line = ['presta', 'proc']
+    if rd_path:
+        cmd_line.extend(['--rd_path', rd_path])
+
+        if output:
+            cmd_line.extend(['--output', output])
+        if emit_events:
+            cmd_line.append('--emit_events')
+
+        result = runJob(cmd_line, logger)
+        return True if result else False
+
+    return False
+
+
 @app.task(name='presta.app.tasks.rd_collect_fastq')
 def rd_collect_fastq(**kwargs):
     path = kwargs.get('ds_path')
