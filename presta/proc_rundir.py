@@ -147,15 +147,6 @@ class PreprocessingWorkflow(object):
 
         )
 
-        # qc_task = chain(rd_collect_fastq.si(ds_path=self.ds['path']),
-        #                 qc_runner.s(outdir=self.fqc['path'],
-        #                             batch_queuing=self.batch_queuing,
-        #                             queue_spec=self.queues_conf.get('low')),
-        #                 copy_qc_dirs.si(src=self.fqc['path'],
-        #                                dest=self.fqc['export_path'],
-        #                                copy_qc=self.copy_qc),
-        #                 )
-
         # full pre-processing sequencing rundir pipeline
         pipeline = chain(
             irods_task,
@@ -183,6 +174,7 @@ class PreprocessingWorkflow(object):
             emit_event.si(event='fastq_ready',
                           params=dict(ds_path=self.ds['path'],
                                       export_path=self.fqc['export_path'],
+                                      rerun=True,
                                       emit_events=self.emit_events)),
         ).delay()
 
@@ -190,7 +182,6 @@ class PreprocessingWorkflow(object):
 help_doc = """
 Process a rundir
 """
-
 
 def make_parser(parser):
     parser.add_argument('--rd_path', metavar="PATH",
