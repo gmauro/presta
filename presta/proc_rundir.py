@@ -3,10 +3,11 @@ import sys
 
 from alta.utils import ensure_dir
 from presta.utils import path_exists, get_conf
-from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
+from presta.app.tasks import bcl2fastq, move,  \
     rd_ready_to_be_preprocessed, \
     copy_samplesheet_from_irods, copy_run_info_to_irods, copy_run_parameters_to_irods, \
-    replace_values_into_samplesheet, sanitize_metadata, replace_index_cycles_into_run_info, copy_qc_dirs
+    replace_values_into_samplesheet, sanitize_metadata, replace_index_cycles_into_run_info
+from presta.app.events import emit_event
 from celery import chain
 
 
@@ -179,7 +180,10 @@ class PreprocessingWorkflow(object):
                                                run_info_path=self.run_info['file_apath'],
                                                rd_label=self.rd['label']),
 
-            # qc_task,
+            emit_event.si(event='fastq_ready',
+                          params=dict(ds_path=self.ds['path'],
+                                      export_path=self.fqc['export_path'],
+                                      emit_events=self.emit_events)),
         ).delay()
 
 

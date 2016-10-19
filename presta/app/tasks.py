@@ -35,6 +35,7 @@ def run_presta_check(**kwargs):
     result = runJob(cmd_line, logger)
     return True if result else False
 
+
 @app.task(name='presta.app.tasks.run_presta_proc')
 def run_presta_proc(**kwargs):
     emit_events = kwargs.get('emit_events', False)
@@ -55,6 +56,30 @@ def run_presta_proc(**kwargs):
 
     return False
 
+
+@app.task(name='presta.app.tasks.run_presta_qc')
+def run_presta_qc(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    rundir_label = kwargs.get('rundir_label')
+    ds_path = kwargs.get('ds_path')
+    export_path = kwargs.get('export_path')
+    rerun = kwargs.get('rerun')
+
+    cmd_line = ['presta', 'qc']
+
+    if rundir_label:
+        cmd_line.extend(['--rundir_label', rundir_label])
+    if export_path:
+        cmd_line.extend(['--export_path', export_path])
+    if ds_path:
+        cmd_line.extend(['--ds_path', ds_path])
+    if rerun:
+        cmd_line.append('--rerun')
+    if emit_events:
+        cmd_line.append('--emit_events')
+
+    result = runJob(cmd_line, logger)
+    return True if result else False
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
 def rd_collect_fastq(**kwargs):
