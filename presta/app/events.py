@@ -11,7 +11,7 @@ from presta.utils import runJob
 def emit_event(event=None, **kwargs):
     if event in ['check_rd_ready_to_be_preprocessed']:
         cmd_line = ['presta', 'check', '--emit_events']
-        output = runJob(cmd_line)
+        output = runJob(cmd_line, logger)
         return True if output else False
 
     elif event in ['check_rd_ready_to_be_preprocessed']:
