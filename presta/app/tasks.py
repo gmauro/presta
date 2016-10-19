@@ -470,7 +470,11 @@ def fastqc(fq_list, **kwargs):
               'remoteCommand': os.path.join(home, launcher),
               'args': cmd_line
               }
-        output = runGEJob(jt)
+        try:
+            output = runGEJob(jt)
+        except:
+            output = runJob(cmd_line, logger)
+
     else:
         output = runJob(cmd_line, logger)
 
