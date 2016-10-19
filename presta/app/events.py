@@ -12,16 +12,16 @@ task = lambda f: tasks.setdefault(f.__name__, f)
 
 
 @task
-def check_rd(kwargs):
+def check_rd(params):
     cmd_line = ['presta', 'check', '--emit_events']
     output = runJob(cmd_line, logger)
     return True if output else False
 
 
 @task
-def rd_ready(kwargs):
-    rd_path = kwargs.get('rd_path')
-    rd_label = kwargs.get('rd_label')
+def rd_ready(params):
+    rd_path = params.get('rd_path')
+    rd_label = params.get('rd_label')
     logger.info('{} is ready to be processed. Start preprocessing...'.format(rd_label))
     cmd_line = ['presta', 'proc', '--rd_path', rd_path, '--export_qc']
     output = runJob(cmd_line, logger)
@@ -29,6 +29,5 @@ def rd_ready(kwargs):
 
 
 @app.task(name='presta.app.events.emit_event')
-def emit_event(**kwargs):
-    event = kwargs.get('event')
-    tasks[event](kwargs)
+def emit_event(event, params=None):
+    tasks[event](params)
