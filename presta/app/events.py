@@ -18,7 +18,7 @@ def check_rd(params):
         run_presta_check.__name__)
     )
 
-    run_presta_check.si(params).delay()
+    run_presta_check.si(**params).delay()
 
 
 @task
@@ -28,7 +28,7 @@ def rd_ready(params):
         run_presta_proc.__name__)
     )
 
-    run_presta_proc.si(params).delay()
+    run_presta_proc.si(**params).delay()
 
 
 @app.task(name='presta.app.events.emit_event')
