@@ -28,4 +28,4 @@ def rd_ready(**kwargs):
 
 @app.task(name='presta.app.events.emit_event')
 def emit_event(event=None, **kwargs):
-    task[event](**kwargs)
+    tasks[event](**kwargs)
