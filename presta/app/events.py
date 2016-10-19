@@ -2,9 +2,10 @@ from __future__ import absolute_import
 
 from . import app
 from celery.utils.log import get_task_logger
+from presta.utils import runJob
 
 logger = get_task_logger(__name__)
-from presta.utils import runJob
+
 
 tasks = {}
 task = lambda f: tasks.setdefault(f.__name__, f)
