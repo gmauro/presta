@@ -56,7 +56,9 @@ class RundirsRootpath(object):
             ready_to_be_preprocessed = checks[0] and checks[1] and checks[2][0]
 
             if self.emit_events and ready_to_be_preprocessed:
-                emit_event(event='rd_ready', rd_path=d_path, rd_label=d).apply_async()
+                emit_event(event='rd_ready',
+                           params=dict(rd_path=d_path,
+                                       rd_label=d)).delay()
 
             checks = flatten(checks)
             for i in range(len(checks)):
