@@ -26,6 +26,7 @@ def rd_ready(**kwargs):
     output = runJob(cmd_line, logger)
     return True if output else False
 
+
 @app.task(name='presta.app.events.emit_event')
 def emit_event(event=None, **kwargs):
     tasks[event](**kwargs)
