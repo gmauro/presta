@@ -7,10 +7,12 @@ import os
 import re
 import string
 import sys
+import subprocess
 
 import xml.etree.ElementTree as ET
 from alta import ConfigurationFromYamlFile
 from pkg_resources import resource_filename
+
 
 SAMPLES_WITHOUT_BARCODES = [2, 8]
 DEFAULT_INDEX_CYCLES = dict(index='8', index1='8')
@@ -200,6 +202,24 @@ def paths_setup(logger, cf_from_cli=None):
     logger.debug("config file paths: {}".format(config_file_paths))
 
     return sorted(config_file_paths)[0].path
+
+
+def runJob(cmd, logger):
+    try:
+        # subprocess.check_output(cmd)
+        process = subprocess.Popen(cmd,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
+        output = process.communicate()[0]
+        ret = process.wait()
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.info(e)
+        if e.output:
+            logger.info("command output: %s", e.output)
+        else:
+            logger.info("no command output available")
+        return False
 
 
 class WeightedPath(object):

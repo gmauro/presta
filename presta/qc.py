@@ -89,6 +89,8 @@ def make_parser(parser):
                         help='Where qc reports have to be stored')
     parser.add_argument('--rerun', action='store_true',
                         help='force generating Fastqc reports')
+    parser.add_argument('--emit_events', action='store_true',
+                        help='sends event to router')
 
 
 def implementation(logger, args):

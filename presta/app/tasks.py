@@ -8,35 +8,78 @@ import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
 from presta.utils import IEMRunInfoReader
+from presta.utils import runJob
+
 from pwd import getpwuid
 import errno
 import os
 import shlex
 import shutil
-import subprocess
 
 from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
 
 
-@app.task(name='presta.app.tasks.check_rd_ready_to_be_preprocessed')
-def check_rd_ready_to_be_preprocessed(**kwargs):
-    logger.info('Cron Task: searching for run ready to be preprocessed...')
-    cmd_line = ['presta', 'check', '--proc_rundir']
-    output = runJob(cmd_line)
-    return True if output else False
+@app.task(name='presta.app.tasks.run_presta_check')
+def run_presta_check(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    root_path = kwargs.get('root_path')
+    cmd_line = ['presta', 'check']
+
+    if emit_events:
+        cmd_line.append('--emit_events')
+    if root_path:
+        cmd_line.extend(['--root_path', root_path])
+
+    result = runJob(cmd_line, logger)
+    return True if result else False
 
 
-@app.task(name='presta.app.tasks.process_rundir')
-def process_rundir(**kwargs):
+@app.task(name='presta.app.tasks.run_presta_proc')
+def run_presta_proc(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    output = kwargs.get('output')
     rd_path = kwargs.get('rd_path')
-    rd_label = kwargs.get('rd_label')
-    logger.info('Cron Task: {} is ready to be processed. Start preprocessing...'.format(rd_label))
-    cmd_line = ['presta', 'proc', '--rd_path', rd_path, '--export_qc']
-    output = runJob(cmd_line)
-    return True if output else False
 
+    cmd_line = ['presta', 'proc']
+    if rd_path:
+        cmd_line.extend(['--rd_path', rd_path])
+
+        if output:
+            cmd_line.extend(['--output', output])
+        if emit_events:
+            cmd_line.append('--emit_events')
+
+        result = runJob(cmd_line, logger)
+        return True if result else False
+
+    return False
+
+
+@app.task(name='presta.app.tasks.run_presta_qc')
+def run_presta_qc(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    rundir_label = kwargs.get('rundir_label')
+    ds_path = kwargs.get('ds_path')
+    export_path = kwargs.get('export_path')
+    rerun = kwargs.get('rerun')
+
+    cmd_line = ['presta', 'qc']
+
+    if rundir_label:
+        cmd_line.extend(['--rundir_label', rundir_label])
+    if export_path:
+        cmd_line.extend(['--export_path', export_path])
+    if ds_path:
+        cmd_line.extend(['--ds_path', ds_path])
+    if rerun:
+        cmd_line.append('--rerun')
+    if emit_events:
+        cmd_line.append('--emit_events')
+
+    result = runJob(cmd_line, logger)
+    return True if result else False
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
 def rd_collect_fastq(**kwargs):
@@ -380,9 +423,12 @@ def bcl2fastq(**kwargs):
               'remoteCommand': os.path.join(home, launcher),
               'args': cmd_line
               }
-        output = runGEJob(jt)
+        try:
+            output = runGEJob(jt)
+        except:
+            output = runJob(cmd_line, logger)
     else:
-        output = runJob(cmd_line)
+        output = runJob(cmd_line, logger)
 
     return True if output else False
 
@@ -424,9 +470,13 @@ def fastqc(fq_list, **kwargs):
               'remoteCommand': os.path.join(home, launcher),
               'args': cmd_line
               }
-        output = runGEJob(jt)
+        try:
+            output = runGEJob(jt)
+        except:
+            output = runJob(cmd_line, logger)
+
     else:
-        output = runJob(cmd_line)
+        output = runJob(cmd_line, logger)
 
     return True if output else False
 
@@ -516,14 +566,3 @@ def runGEJob(jt_attr):
     return retval.hasExited
 
 
-def runJob(cmd):
-    try:
-        subprocess.check_output(cmd)
-        return True
-    except subprocess.CalledProcessError as e:
-        logger.info(e)
-        if e.output:
-            logger.info("command output: %s", e.output)
-        else:
-            logger.info("no command output available")
-        return False

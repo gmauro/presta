@@ -3,10 +3,11 @@ import sys
 
 from alta.utils import ensure_dir
 from presta.utils import path_exists, get_conf
-from presta.app.tasks import bcl2fastq, rd_collect_fastq, move, qc_runner, \
+from presta.app.tasks import bcl2fastq, move,  \
     rd_ready_to_be_preprocessed, \
     copy_samplesheet_from_irods, copy_run_info_to_irods, copy_run_parameters_to_irods, \
-    replace_values_into_samplesheet, sanitize_metadata, replace_index_cycles_into_run_info, copy_qc_dirs
+    replace_values_into_samplesheet, sanitize_metadata, replace_index_cycles_into_run_info
+from presta.app.events import emit_event
 from celery import chain
 
 
@@ -68,7 +69,7 @@ class PreprocessingWorkflow(object):
 
         self.overwrite_samplesheet = args.overwrite_samplesheet
 
-        self.copy_qc = args.export_qc
+        self.emit_events = args.emit_events
 
         self.batch_queuing = args.batch_queuing
         self.queues_conf = conf.get_section('queues')
@@ -146,15 +147,6 @@ class PreprocessingWorkflow(object):
 
         )
 
-        qc_task = chain(rd_collect_fastq.si(ds_path=self.ds['path']),
-                        qc_runner.s(outdir=self.fqc['path'],
-                                    batch_queuing=self.batch_queuing,
-                                    queue_spec=self.queues_conf.get('low')),
-                        copy_qc_dirs.si(src=self.fqc['path'],
-                                       dest=self.fqc['export_path'],
-                                       copy_qc=self.copy_qc),
-                        )
-
         # full pre-processing sequencing rundir pipeline
         pipeline = chain(
             irods_task,
@@ -179,14 +171,17 @@ class PreprocessingWorkflow(object):
                                                run_info_path=self.run_info['file_apath'],
                                                rd_label=self.rd['label']),
 
-            qc_task,
+            emit_event.si(event='fastq_ready',
+                          params=dict(ds_path=self.ds['path'],
+                                      export_path=self.fqc['export_path'],
+                                      rerun=True,
+                                      emit_events=self.emit_events)),
         ).delay()
 
 
 help_doc = """
 Process a rundir
 """
-
 
 def make_parser(parser):
     parser.add_argument('--rd_path', metavar="PATH",
@@ -207,8 +202,8 @@ def make_parser(parser):
     parser.add_argument('--no_lane_splitting', action='store_true',
                         help='Do not split fastq by lane')
 
-    parser.add_argument('--export_qc', action='store_true',
-                        help='Export qc reports, running "presta qc"')
+    parser.add_argument('--emit_events', action='store_true',
+                        help='sends events to router')
 
     parser.add_argument("--barcode_mismatches", type=int, choices=[0, 1, 2],
                         default=1, help='Number of allowed mismatches per index')
