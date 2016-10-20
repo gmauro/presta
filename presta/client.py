@@ -31,11 +31,11 @@ class Client:
     def init_bika(self, role='admin'):
         bika_conf = self.conf.get_section('bika')
         bika_roles = bika_conf.get('roles')
-        self.logger.info('roles {}'.format(bika_roles))
         if bika_conf and bika_roles and role in bika_roles:
+            bika_role = bika_roles.get(roles)
             url = bika_conf.get('url')
-            user = bika_roles.get('user')
-            password = bika_roles.get('password')
+            user = bika_role.get('user')
+            password = bika_role.get('password')
             self.bk = Bims(url, user, password, 'bikalims').bims
 
     # Initializing connection to Galaxy server
