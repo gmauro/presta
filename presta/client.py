@@ -28,9 +28,10 @@ class Client:
                                          zone=zone)
 
     # Initializing connection to Bika server
-    def init_bika(self, role='manager'):
+    def init_bika(self, role='admin'):
         bika_conf = self.conf.get_section('bika')
         bika_roles = bika_conf.get('roles')
+        self.logger.info('roles {}'.format(bika_roles))
         if bika_conf and bika_roles and role in bika_roles:
             url = bika_conf.get('url')
             user = bika_roles.get('user')
