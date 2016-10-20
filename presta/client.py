@@ -32,7 +32,7 @@ class Client:
         bika_conf = self.conf.get_section('bika')
         bika_roles = bika_conf.get('roles')
         if bika_conf and bika_roles and role in bika_roles:
-            bika_role = bika_roles.get(roles)
+            bika_role = bika_roles.get(role)
             url = bika_conf.get('url')
             user = bika_role.get('user')
             password = bika_role.get('password')
