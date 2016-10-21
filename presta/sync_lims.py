@@ -3,6 +3,8 @@ import os, sys
 from alta.utils import ensure_dir
 from presta.utils import get_conf
 from presta.app.router import dispatch_event
+from presta.app.tasks import rd_collect_samples
+from presta.app.lims import sync_samples
 
 from client import Client
 from celery import chain
@@ -20,6 +22,7 @@ class SyncLimsWorkflow(object):
 
         self.io_conf = self.conf.get_io_section()
         self.rundir_label = args.rundir_label
+        self.samplesheet_filename = 'SampleSheet.csv'
 
         self.emit_events = args.emit_events
         self.force = args.force
@@ -31,6 +34,12 @@ class SyncLimsWorkflow(object):
                               ' Use --force option to bypass this check'.format(self.rundir_label))
             sys.exit()
 
+        sync_task = chain(rd_collect_samples.si(conf=self.irods_conf,
+                                                samplesheet_filename=self.samplesheet_filename,
+                                                rd_label=self.rundir_label),
+                          sync_samples.s(),
+                          ).delay()
+
 
 help_doc = """
 Synchronize bika lims
@@ -38,7 +47,7 @@ Synchronize bika lims
 
 
 def make_parser(parser):
-    parser.add_argument('--rundir_label', '-r', metavar="STRING",
+    parser.add_argument('--rundir_label', '-r', metavar="STRING", required=True,
                         help='Label of the rundir to synchronize')
     parser.add_argument('--force', '-f', action='store_true',
                         help='force synchronization')
