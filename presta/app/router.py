@@ -40,6 +40,6 @@ def fastq_ready(params):
     run_presta_qc.si(**params).delay()
 
 
-@app.task(name='presta.app.events.emit_event')
-def emit_event(event, params):
+@app.task(name='presta.app.events.dispatch_event')
+def dispatch_event(event, params):
     tasks[event](params)
