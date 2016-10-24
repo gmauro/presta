@@ -65,7 +65,10 @@ class DeliveryWorkflow(object):
         playbook_path = args.playbook_path if args.playbook_path else None
         self.playbook_path = playbook_path
 
+        self.merge = args.merge
+
     def __fs2fs_carrier(self, ipath, opath):
+
         bids = [_ for _ in self.batch_info.keys() if self.batch_info[_].get(
             'type') not in SAMPLE_TYPES_TOSKIP]
         self.logger.info('Looking for files related to {} Bika ids'.format(
@@ -78,7 +81,10 @@ class DeliveryWorkflow(object):
         datasets_info, count = dm.collect_fastq_from_fs(ipath)
         self.logger.info("found {} files".format(count))
 
+        merge = dict() if self.merge else None
+
         for bid in bids:
+            merge[bid] = dict() if self.merge and bid not in merge else merge[bid]
             if bid in datasets_info:
                 for f in datasets_info[bid]:
                     src = f.get('filepath')
@@ -87,25 +93,36 @@ class DeliveryWorkflow(object):
                     ext = f.get('file_ext')
                     sample_label = self.batch_info[bid].get('client_sample_id')
                     sample_label = '_'.join(
-                        [sample_label.replace(' ', '_'), lane, read]) if lane else '_'.join(
+                        [sample_label.replace(' ', '_'), lane, read]) if lane and not self.merge else '_'.join(
                         [sample_label.replace(' ', '_'), read])
                     sample_label = '.'.join([sample_label, ext])
                     dst = os.path.join(opath, self.batch_id, sample_label)
-
-                    self.logger.info("Coping {} into {}".format(src, dst))
-                    if os.path.isfile(dst):
-                        self.logger.info('{} skipped'.format(os.path.basename(
-                            dst)))
+                    if not self.merge:
+                        self.logger.info("Coping {} into {}".format(src, dst))
+                        if os.path.isfile(dst):
+                            self.logger.info('{} skipped'.format(os.path.basename(
+                                dst)))
+                        else:
+                            if not self.dry_run:
+                                copy.si(src, dst).delay()
+                                self.logger.info(
+                                    '{} copied'.format(os.path.basename(dst)))
                     else:
-                        if not self.dry_run:
-                            copy.si(src, dst).delay()
-                            self.logger.info(
-                                '{} copied'.format(os.path.basename(dst)))
+                        if read not in merge[bid]:
+                            merge[bid][read] = dict(src=list(), dst=dst)
+                        else:
+                            merge[bid][read][src].append(src)
+
             else:
                 msg = 'I have not found any file related to this ' \
                       'Bika id: {}'.format(bid)
                 self.logger.warning(msg)
                 self.logger.info('{} skipped'.format(bid))
+
+        if self.merge:
+            for bid, data in merge.iteritems():
+                self.logger.info("Merging {}".format(bid))
+                self.logger.info("Coping {} into {}".format(" ".join(data['src']), data['dst']))
 
     def __execute_playbook(self, playbook, inventory_file,
                            random_user, random_clear_text_password):
@@ -226,6 +243,8 @@ def make_parser(parser):
     parser.add_argument('--destination', '-d', type=str, choices=DESTINATIONS,
                         help='where datasets have to be delivered',
                         required=True)
+    parser.add_argument('--merge', action='store_true', default=False,
+                        help='Merge fastq sample from different lanes.')
     parser.add_argument('--dry_run', action='store_true', default=False,
                         help='Delivery will be only described.')
     parser.add_argument('--input_path', '-i', metavar="PATH",
