@@ -234,10 +234,10 @@ def merge_datasets(src, dest, ext):
     result = False
     try:
         out_file = gzip.open(dest, 'wb') if ext.endswith('.gz') else open(dest, 'wb')
-        for f in src:
-            if os.path.exists(f):
-                to_merge = gzip.open(dest, 'rb') if ext.endswith('.gz') else open(dest, 'rb')
-                with to_merge as ff:
+        for path in src:
+            if os.path.exists(path):
+                f = gzip.open(path, 'rb') if ext.endswith('.gz') else open(path, 'rb')
+                with f as ff:
                     for line in ff:
                         out_file.write(line)
         result = True
