@@ -237,7 +237,7 @@ def merge_datasets(src, dest, ext):
             for path in src:
                 if os.path.exists(path):
                     with gzip.open(path, 'rb') if ext.endswith('.gz') else open(path, 'rb') as rpf:
-                        shutil.copyfileobj(ff, wpf)
+                        shutil.copyfileobj(rpf, wpf)
                         # for line in ff:
                         #     out_file.write(line)
         result = True
