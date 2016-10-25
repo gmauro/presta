@@ -229,6 +229,22 @@ def copy_qc_dirs(src, dest, copy_qc=True):
 
     return None
 
+@app.task(name='presta.app.tasks.merge_datatsets')
+def merge_datasets(src, dest, ext):
+    result = False
+    try:
+        out_file = gzip.open(dest, 'wb') if ext.endswith('.gz') else open(dest, 'wb')
+        for f in src:
+            if os.path.exists(f):
+                to_merge = gzip.open(dest, 'rb') if ext.endswith('.gz') else open(dest, 'rb')
+                with to_merge as ff:
+                    for line in ff:
+                        out_file.write(line)
+        result = True
+    except:
+       pass
+    return result
+
 
 @app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)
 def sanitize_metadata(**kwargs):

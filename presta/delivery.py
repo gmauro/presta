@@ -20,7 +20,7 @@ from alta.utils import ensure_dir
 from collections import namedtuple
 from client import Client
 from datasets import DatasetsManager
-from presta.app.tasks import copy
+from presta.app.tasks import copy, merge_datasets
 from presta.utils import path_exists, get_conf
 
 
@@ -127,7 +127,7 @@ class DeliveryWorkflow(object):
                     for read, files in reads.iteritems():
                         self.logger.info("Merging datasets {} - {} for {}".format(ext, read, bid))
                         self.logger.info("Merging {} into {}".format(" ".join(files['src']), files['dst']))
-                        #merge.si(files['src'], files['dst'], ext).delay()
+                        merge_datasets.si(files['src'], files['dst'], ext).delay()
 
     def __execute_playbook(self, playbook, inventory_file,
                            random_user, random_clear_text_password):
