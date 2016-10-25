@@ -87,7 +87,6 @@ class DeliveryWorkflow(object):
             merge[bid] = dict() if self.merge and bid not in merge else merge[bid]
             if bid in datasets_info:
                 for f in datasets_info[bid]:
-                    self.logger.info('data: {}'.format(f))
                     src = f.get('filepath')
                     read = f.get('read_label')
                     lane = f.get('lane')
@@ -109,10 +108,11 @@ class DeliveryWorkflow(object):
                                 self.logger.info(
                                     '{} copied'.format(os.path.basename(dst)))
                     else:
-                        if read not in merge[bid]:
-                            merge[bid][read] = dict(src=list(), dst=dst)
+                        merge[bid][ext] = dict() if ext not in merge[bid] else merge[bid][ext]
+                        if read not in merge[bid][ext]:
+                            merge[bid][ext][read] = dict(src=list(), dst=dst)
                         else:
-                            merge[bid][read]['src'].append(src)
+                            merge[bid][ext][read]['src'].append(src)
 
             else:
                 msg = 'I have not found any file related to this ' \
@@ -122,11 +122,12 @@ class DeliveryWorkflow(object):
                 del merge[bid]
 
         if self.merge:
-            for bid, data in merge.iteritems():
-                for read, files in data.iteritems():
-                    self.logger.info("Merging {} for {}".format(read, bid))
-                    self.logger.info("Merging {} into {}".format(" ".join(files['src']), files['dst']))
-                    #merge.si(files['src'], files['dst']).delay()
+            for bid, file_ext in merge.iteritems():
+                for ext, reads in file_ext.iteritems():
+                    for read, files in reads.iteritems():
+                        self.logger.info("Merging datasets {} - {} for {}".format(ext, read, bid))
+                        self.logger.info("Merging {} into {}".format(" ".join(files['src']), files['dst']))
+                        #merge.si(files['src'], files['dst'], ext).delay()
 
     def __execute_playbook(self, playbook, inventory_file,
                            random_user, random_clear_text_password):
