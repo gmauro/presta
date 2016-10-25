@@ -237,12 +237,12 @@ def merge_datasets(src, dest, ext):
             for path in src:
                 if os.path.exists(path):
                     with gzip.open(path, 'rb') if ext.endswith('.gz') else open(path, 'rb') as rpf:
-                        shutil.copyfileobj(rpf, wpf)
+                        shutil.copyfileobj(rpf, wpf, 1024*1024*100)
                         # for line in ff:
                         #     out_file.write(line)
         result = True
-    except:
-       pass
+    except OSError as e:
+        logger.error('Source not copied. Error: {}'.format(e))
     return result
 
 
@@ -352,6 +352,7 @@ def replace_values_into_samplesheet(**kwargs):
         with open(samplesheet_file_path, 'w') as f:
             for row in samplesheet.get_body(replace=True):
                 f.write(row)
+
 
 @app.task(name='presta.app.tasks.replace_index_cycles_into_run_info',
           ignore_result=True)
