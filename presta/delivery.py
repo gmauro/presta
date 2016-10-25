@@ -87,6 +87,7 @@ class DeliveryWorkflow(object):
             merge[bid] = dict() if self.merge and bid not in merge else merge[bid]
             if bid in datasets_info:
                 for f in datasets_info[bid]:
+                    self.logger.info('data: {}'.format(f))
                     src = f.get('filepath')
                     read = f.get('read_label')
                     lane = f.get('lane')
@@ -122,10 +123,10 @@ class DeliveryWorkflow(object):
 
         if self.merge:
             for bid, data in merge.iteritems():
-                self.logger.info("Merging {}".format(bid))
                 for read, files in data.iteritems():
-                    self.logger.info("Now {}".format(read))
-                    self.logger.info("Coping {} into {}".format(" ".join(files['src']), files['dst']))
+                    self.logger.info("Merging {} for {}".format(read, bid))
+                    self.logger.info("Merging {} into {}".format(" ".join(files['src']), files['dst']))
+                    #merge.si(files['src'], files['dst']).delay()
 
     def __execute_playbook(self, playbook, inventory_file,
                            random_user, random_clear_text_password):

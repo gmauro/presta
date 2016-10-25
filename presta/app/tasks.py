@@ -15,6 +15,7 @@ import errno
 import os
 import shlex
 import shutil
+import gzip
 
 from celery.utils.log import get_task_logger
 
