@@ -233,13 +233,13 @@ def copy_qc_dirs(src, dest, copy_qc=True):
 def merge_datasets(src, dest, ext):
     result = False
     try:
-        out_file = gzip.open(dest, 'wb') if ext.endswith('.gz') else open(dest, 'wb')
-        for path in src:
-            if os.path.exists(path):
-                f = gzip.open(path, 'rb') if ext.endswith('.gz') else open(path, 'rb')
-                with f as ff:
-                    for line in ff:
-                        out_file.write(line)
+        with gzip.open(dest, 'wb') if ext.endswith('.gz') else open(dest, 'wb') as wpf:
+            for path in src:
+                if os.path.exists(path):
+                    with gzip.open(path, 'rb') if ext.endswith('.gz') else open(path, 'rb') as rpf:
+                        shutil.copyfileobj(ff, wpf)
+                        # for line in ff:
+                        #     out_file.write(line)
         result = True
     except:
        pass
