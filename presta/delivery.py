@@ -123,7 +123,9 @@ class DeliveryWorkflow(object):
         if self.merge:
             for bid, data in merge.iteritems():
                 self.logger.info("Merging {}".format(bid))
-                self.logger.info("Coping {} into {}".format(" ".join(data['src']), data['dst']))
+                for read, files in data.iteritems():
+                    self.logger.info("Now {}".format(read))
+                    self.logger.info("Coping {} into {}".format(" ".join(files['src']), files['dst']))
 
     def __execute_playbook(self, playbook, inventory_file,
                            random_user, random_clear_text_password):
