@@ -111,13 +111,14 @@ class DeliveryWorkflow(object):
                         if read not in merge[bid]:
                             merge[bid][read] = dict(src=list(), dst=dst)
                         else:
-                            merge[bid][read][src].append(src)
+                            merge[bid][read]['src'].append(src)
 
             else:
                 msg = 'I have not found any file related to this ' \
                       'Bika id: {}'.format(bid)
                 self.logger.warning(msg)
                 self.logger.info('{} skipped'.format(bid))
+                del merge[bid]
 
         if self.merge:
             for bid, data in merge.iteritems():
