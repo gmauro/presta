@@ -15,7 +15,7 @@ import errno
 import os
 import shlex
 import shutil
-import gzip
+import fileinput
 
 from celery.utils.log import get_task_logger
 
@@ -233,16 +233,12 @@ def copy_qc_dirs(src, dest, copy_qc=True):
 def merge_datasets(src, dest, ext):
     result = False
     try:
-        with gzip.open(dest, 'wb') if ext.endswith('.gz') else open(dest, 'wb') as wpf:
-            for path in src:
-                if os.path.exists(path):
-                    with gzip.open(path, 'rb') if ext.endswith('.gz') else open(path, 'rb') as rpf:
-                        shutil.copyfileobj(rpf, wpf, 1024*1024*100)
-                        # for line in ff:
-                        #     out_file.write(line)
+        with open(dest, 'wb') as f:
+            input_lines = fileinput.input(src, mode='rb')
+            f.writelines(input_lines)
         result = True
     except OSError as e:
-        logger.error('Source not copied. Error: {}'.format(e))
+        logger.error('Sources not merged. Error: {}'.format(e))
     return result
 
 
