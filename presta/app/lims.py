@@ -59,7 +59,8 @@ def sync_analysis_requests(samples, bika_conf):
 def submit(samples, bika_conf, result='1'):
     if samples and len(samples) > 0:
         paths = __get_analysis_paths(samples=samples, review_state='sample_received', bika_conf=bika_conf)
-        logger.info(paths)
+        res = __update(paths=paths, params=dict(Result='1'), bika_conf=bika_conf)
+        logger.info(res)
         # pipeline = chain()
 
     return True
@@ -69,8 +70,7 @@ def submit(samples, bika_conf, result='1'):
 def verify(samples, bika_conf):
     if samples and len(samples) > 0:
         paths = __get_analysis_paths(samples=samples, review_state='to_be_verified', bika_conf=bika_conf)
-        res = __update(paths=paths, params=dict(Result='1'), bika_conf=bika_conf)
-        logger.info(res)
+
         # pipeline = chain()
 
     return True
@@ -80,7 +80,7 @@ def verify(samples, bika_conf):
 def publish(samples, bika_conf):
     if samples and len(samples) > 0:
         paths = __get_analysis_paths(samples=samples, review_state='verified', bika_conf=bika_conf)
-        logger.info(paths)
+        #logger.info(paths)
         # pipeline = chain()
 
     return True
