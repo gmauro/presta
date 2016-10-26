@@ -94,7 +94,7 @@ def publish(samples, bika_conf):
 
 
 def __get_analysis_paths(samples, review_state, bika_conf):
-    bika = __init_bika(bika_conf)
+    bika = __init_bika(bika_conf, role='analyst')
     ids = [s.get('sample_id') for s in samples]
     params = dict(ids='|'.join(ids))
 
