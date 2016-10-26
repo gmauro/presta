@@ -61,7 +61,8 @@ def submit(samples, bika_conf, result='1'):
         try:
             paths = __get_analysis_paths(samples=samples, review_state='sample_received', bika_conf=bika_conf)
             bika = __init_bika(bika_conf, role='analyst')
-            bika.client.submit_analyses(paths=paths, result=1)
+            logger.info(paths)
+            #bika.client.submit_analyses(paths=paths, result=1)
         except:
             return False
 
@@ -98,8 +99,8 @@ def __get_analysis_paths(samples, review_state, bika_conf):
 
     for ar in ars['objects']:
         for a in ar['Analyses']:
-            if a['id'] not in DENIED_ANALYSIS and a['review_state'] in [review_state]:
-                paths.append(os.path.join(ar['path'], a['id']))
+            if str(a['id']) not in DENIED_ANALYSIS and str(a['review_state']) in [review_state]:
+                paths.append(os.path.join(str(ar['path']), str(a['id'])))
 
     return paths
 
