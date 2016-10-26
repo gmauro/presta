@@ -58,10 +58,12 @@ def sync_analysis_requests(samples, bika_conf):
 @app.task(name='presta.app.lims.submit')
 def submit(samples, bika_conf, result='1'):
     if samples and len(samples) > 0:
-        paths = __get_analysis_paths(samples=samples, review_state='sample_received', bika_conf=bika_conf)
-        res = __update(paths=paths, params=dict(Result='1'), bika_conf=bika_conf)
-        logger.info(res)
-        # pipeline = chain()
+        try:
+            paths = __get_analysis_paths(samples=samples, review_state='sample_received', bika_conf=bika_conf)
+            bika = __init_bika(bika_conf, role='analyst')
+            bika.client.submit_analyses(paths=paths, result=1)
+        except:
+            return False
 
     return True
 
@@ -101,13 +103,6 @@ def __get_analysis_paths(samples, review_state, bika_conf):
 
     return paths
 
-
-def __update(paths, params, bika_conf):
-    bika = __init_bika(bika_conf)
-    input_values = dict()
-    for p in paths:
-        input_values[p] = params
-    return input_values
 
 def __init_bika(bika_conf, role='admin'):
     bika_roles = bika_conf.get('roles')
