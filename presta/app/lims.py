@@ -40,7 +40,7 @@ def sync_analyses(samples, bika_conf, result='1'):
         pipeline = chain(
             submit.si(samples, bika_conf, result),
             verify.si(samples, bika_conf),
-            pubblish.si(samples, bika_conf),
+            publish.si(samples, bika_conf),
         )
         pipeline.delay()
 
@@ -68,15 +68,20 @@ def submit(samples, bika_conf, result='1'):
 @app.task(name='presta.app.lims.verify')
 def verify(samples, bika_conf):
     if samples and len(samples) > 0:
-        pass
+        paths = __get_analysis_paths(samples=samples, review_state='to_be_verified', bika_conf=bika_conf)
+        res = __update(paths=paths, params=dict(Result='1'), bika_conf=bika_conf)
+        logger.info(res)
+        # pipeline = chain()
 
     return True
 
 
-@app.task(name='presta.app.lims.pubblish')
-def pubblish(samples, bika_conf):
+@app.task(name='presta.app.lims.publish')
+def publish(samples, bika_conf):
     if samples and len(samples) > 0:
-        pass
+        paths = __get_analysis_paths(samples=samples, review_state='verified', bika_conf=bika_conf)
+        logger.info(paths)
+        # pipeline = chain()
 
     return True
 
@@ -91,12 +96,18 @@ def __get_analysis_paths(samples, review_state, bika_conf):
 
     for ar in ars['objects']:
         for a in ar['Analyses']:
-            logger.info("{}/{} - {} - {}".format(ar['path'], a['id'], a['review_state'], review_state))
             if a['id'] not in DENIED_ANALYSIS and a['review_state'] in [review_state]:
                 paths.append(os.path.join(ar['path'], a['id']))
 
     return paths
 
+
+def __update(paths, params, bika_conf):
+    bika = __init_bika(bika_conf)
+    input_values = dict()
+    for p in paths:
+        input_values[p] = params
+    return input_values
 
 def __init_bika(bika_conf, role='admin'):
     bika_roles = bika_conf.get('roles')
