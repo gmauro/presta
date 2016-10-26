@@ -80,17 +80,11 @@ def pubblish(samples, bika_conf):
 
     return True
 
-
-def __get_query_params(key):
-
-    return QUERY_PARAMS.get(key, dict())
-
-
 def __get_analysis_paths(samples, review_state, bika_conf):
     bika = __init_bika(bika_conf)
     ids = [s.get('sample_id') for s in samples]
     params = dict(ids='|'.join(ids))
-    ars = bika.get_analysis_requests(params)
+    ars = bika.client.get_analysis_requests(params)
     paths = list()
 
     for ar in ars['objects']:
