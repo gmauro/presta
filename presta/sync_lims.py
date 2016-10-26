@@ -37,8 +37,10 @@ class SyncLimsWorkflow(object):
         sync_task = chain(rd_collect_samples.si(conf=self.irods_conf,
                                                 samplesheet_filename=self.samplesheet_filename,
                                                 rd_label=self.rundir_label),
-                          sync_samples.s(),
-                          ).delay()
+                          sync_samples.s(conf=self.irods_conf),
+                          )
+
+        sync_task.delay()
 
 
 help_doc = """
