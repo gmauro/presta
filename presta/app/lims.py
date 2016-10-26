@@ -62,9 +62,9 @@ def submit(samples, bika_conf, result='1'):
             logger.info('Submitting...')
             paths = __get_analysis_paths(samples=samples, review_state='sample_received', bika_conf=bika_conf)
             bika = __init_bika(bika_conf, role='analyst')
-            logger.info(paths)
-            # res = bika.client.submit_analyses(paths=paths, result=1)
-            # logger.info(res)
+
+            res = bika.client.submit_analyses(paths=paths, result=1)
+            logger.info(res)
         except:
             return False
 
