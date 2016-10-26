@@ -85,12 +85,13 @@ def __get_analysis_paths(samples, review_state, bika_conf):
     bika = __init_bika(bika_conf)
     ids = [s.get('sample_id') for s in samples]
     params = dict(ids='|'.join(ids))
-    logger.info('params= {}'.format(params))
+
     ars = bika.client.get_analysis_requests(params)
     paths = list()
-    logger.info('ars= {}'.format(ars))
+
     for ar in ars['objects']:
         for a in ar['Analyses']:
+            logger.info("{}/{} - {} - {}".format(ar['path'], a['id'], a['review_state'], review_state))
             if a['id'] not in DENIED_ANALYSIS and a['review_state'] in [review_state]:
                 paths.append(os.path.join(ar['path'], a['id']))
 
