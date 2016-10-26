@@ -38,7 +38,7 @@ def sync_analyses(samples, bika_conf, result='1'):
 
     if samples and len(samples) > 0:
         pipeline = chain(
-            submit.si(samples, bika_conf, result),
+            submit.si(samples, bika_conf),
             verify.si(samples, bika_conf),
             publish.si(samples, bika_conf),
         )
@@ -56,22 +56,28 @@ def sync_analysis_requests(samples, bika_conf):
 
 
 @app.task(name='presta.app.lims.submit')
-def submit(samples, bika_conf, result='1'):
+def submit(samples, bika_conf):
     if samples and len(samples) > 0:
-
         logger.info('Submitting...')
         paths = __get_analysis_paths(samples=samples, review_state='sample_received', bika_conf=bika_conf)
-        bika = __init_bika(bika_conf=bika_conf, role='analyst')
-        bika.client.submit_analyses(paths)
+        logger.info('To submit: {}'.format(paths))
+        if len(paths) > 0:
+            bika = __init_bika(bika_conf=bika_conf, role='analyst')
+            res = bika.client.submit_analyses(paths)
+            logger.info('Submit Res: {}'.format(res))
     return True
 
 
 @app.task(name='presta.app.lims.verify')
 def verify(samples, bika_conf):
     if samples and len(samples) > 0:
+        logger.info('Verifying...')
         paths = __get_analysis_paths(samples=samples, review_state='to_be_verified', bika_conf=bika_conf)
-        bika = __init_bika(bika_conf=bika_conf)
-        bika.client.verify_analyses(paths)
+        logger.info('To verify: {}'.format(paths))
+        if len(paths) > 0:
+            bika = __init_bika(bika_conf=bika_conf)
+            res = bika.client.verify_analyses(paths)
+            logger.info('Verify Res: {}'.format(res))
 
     return True
 
@@ -79,7 +85,9 @@ def verify(samples, bika_conf):
 @app.task(name='presta.app.lims.publish')
 def publish(samples, bika_conf):
     if samples and len(samples) > 0:
+        logger.info('Publishing...')
         paths = __get_analysis_paths(samples=samples, review_state='verified', bika_conf=bika_conf)
+        logger.info('To publish: {}'.format(paths))
         bika = __init_bika(bika_conf=bika_conf)
         #bika.client.publish_analyses(paths)
     return True
