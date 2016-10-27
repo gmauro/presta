@@ -5,7 +5,8 @@ from celery import Celery
 app = Celery('app',
              include=['app.tasks',
                       'app.cron',
-                      'app.events',
+                      'app.router',
+                      'app.lims',
                       ])
 
 # Set default configuration module name

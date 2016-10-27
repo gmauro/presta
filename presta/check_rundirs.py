@@ -2,7 +2,7 @@ import os
 
 from presta.utils import path_exists, get_conf
 from presta.app.tasks import rd_ready_to_be_preprocessed
-from presta.app.events import emit_event
+from presta.app.router import dispatch_event
 
 
 class RundirsRootpath(object):
@@ -56,11 +56,11 @@ class RundirsRootpath(object):
             ready_to_be_preprocessed = checks[0] and checks[1] and checks[2][0]
 
             if self.emit_events and ready_to_be_preprocessed:
-                emit_event.si(event='rd_ready',
-                              params=dict(rd_path=d_path,
-                                          rd_label=d,
-                                          emit_events=self.emit_events)
-                              ).delay()
+                dispatch_event.si(event='rd_ready',
+                                  params=dict(rd_path=d_path,
+                                              rd_label=d,
+                                              emit_events=self.emit_events)
+                                  ).delay()
 
             checks = flatten(checks)
             for i in range(len(checks)):

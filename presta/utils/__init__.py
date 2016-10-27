@@ -165,7 +165,6 @@ class IEMSampleSheetReader(csv.DictReader):
         return barcodes_mask
 
 
-
 def get_conf(logger, config_file):
     config_file_path = paths_setup(logger, config_file)
 

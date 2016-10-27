@@ -15,6 +15,7 @@ import errno
 import os
 import shlex
 import shutil
+import fileinput
 
 from celery.utils.log import get_task_logger
 
@@ -228,6 +229,18 @@ def copy_qc_dirs(src, dest, copy_qc=True):
 
     return None
 
+@app.task(name='presta.app.tasks.merge_datatsets')
+def merge_datasets(src, dest, ext):
+    result = False
+    try:
+        with open(dest, 'wb') as f:
+            input_lines = fileinput.input(src, mode='rb')
+            f.writelines(input_lines)
+        result = True
+    except OSError as e:
+        logger.error('Sources not merged. Error: {}'.format(e))
+    return result
+
 
 @app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)
 def sanitize_metadata(**kwargs):
@@ -335,6 +348,7 @@ def replace_values_into_samplesheet(**kwargs):
         with open(samplesheet_file_path, 'w') as f:
             for row in samplesheet.get_body(replace=True):
                 f.write(row)
+
 
 @app.task(name='presta.app.tasks.replace_index_cycles_into_run_info',
           ignore_result=True)
@@ -479,6 +493,42 @@ def fastqc(fq_list, **kwargs):
         output = runJob(cmd_line, logger)
 
     return True if output else False
+
+
+@app.task(name='presta.app.tasks.rd_collect_samples')
+def rd_collect_samples(**kwargs):
+    ir_conf = kwargs.get('conf')
+    rundir_label = kwargs.get('rd_label')
+    samplesheet_filename = kwargs.get('samplesheet_filename', 'SampleSheet.csv')
+
+    samples = []
+    ir = build_object_store(store='irods',
+                            host=ir_conf['host'],
+                            port=ir_conf['port'],
+                            user=ir_conf['user'],
+                            password=ir_conf['password'].encode('ascii'),
+                            zone=ir_conf['zone'])
+
+    ipath = os.path.join(ir_conf['runs_collection'],
+                         rundir_label,
+                         samplesheet_filename)
+
+    try:
+        exists, iobj = ir.exists(ipath, delivery=True)
+        ir.sess.cleanup()
+    except:
+        ir.sess.cleanup()
+
+    if exists:
+        with iobj.open('r') as f:
+            samplesheet = IEMSampleSheetReader(f)
+
+        samples = [dict(
+            sample_id=r['Sample_ID'],
+            sample_name=r['Sample_Name']
+        ) for r in samplesheet.data]
+
+    return samples
 
 
 def __set_imetadata(ir_conf, ipath, imetadata):
