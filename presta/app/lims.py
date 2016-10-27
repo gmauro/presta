@@ -103,7 +103,8 @@ def __get_analysis_paths(samples, review_state, bika_conf):
     ids = [s.get('sample_id') for s in samples]
     params = dict(ids='|'.join(ids))
 
-    ars = bika.client.get_analysis_requests(params)
+    #ars = bika.client.get_analysis_requests(params)
+    ars = bika.get_analysis_requests(params)
     paths = list()
 
     for ar in ars['objects']:
