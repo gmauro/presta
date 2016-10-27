@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 
 from . import app
-from alta.bims import Bims
+#from alta.bims import Bims
+from bikaclient import BikaClient
 from presta.app.router import dispatch_event
 from celery import chain
 
@@ -63,7 +64,8 @@ def submit(samples, bika_conf):
         logger.info('To submit: {}'.format(paths))
         if len(paths) > 0:
             bika = __init_bika(bika_conf=bika_conf, role='analyst')
-            res = bika.client.submit_analyses(paths)
+            #res = bika.client.submit_analyses(paths)
+            res = bika.submit_analyses(paths)
             logger.info('Submit Res: {}'.format(res))
     return True
 
@@ -76,7 +78,8 @@ def verify(samples, bika_conf):
         logger.info('To verify: {}'.format(paths))
         if len(paths) > 0:
             bika = __init_bika(bika_conf=bika_conf)
-            res = bika.client.verify_analyses(paths)
+            #res = bika.client.verify_analyses(paths)
+            res = bika.verify_analyses(paths)
             logger.info('Verify Res: {}'.format(res))
 
     return True
@@ -89,12 +92,14 @@ def publish(samples, bika_conf):
         paths = __get_analysis_paths(samples=samples, review_state='verified', bika_conf=bika_conf)
         logger.info('To publish: {}'.format(paths))
         bika = __init_bika(bika_conf=bika_conf)
-        #bika.client.publish_analyses(paths)
+        #res = bika.client.publish_analyses(paths)
+        res = bika.publish_analyses(paths)
+        logger.info('Publish Res: {}'.format(res))
     return True
 
 
 def __get_analysis_paths(samples, review_state, bika_conf):
-    bika = __init_bika(bika_conf, role='analyst')
+    bika = __init_bika(bika_conf)
     ids = [s.get('sample_id') for s in samples]
     params = dict(ids='|'.join(ids))
 
@@ -116,5 +121,6 @@ def __init_bika(bika_conf, role='admin'):
         url = bika_conf.get('url')
         user = bika_role.get('user')
         password = bika_role.get('password')
-        bika = Bims(url, user, password, 'bikalims').bims
+        #bika = Bims(url, user, password, 'bikalims').bims
+        bika = BikaClient(host=url, username=user, password=password)
         return bika
