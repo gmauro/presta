@@ -6,7 +6,6 @@ from presta.app.router import dispatch_event
 from presta.app.tasks import rd_collect_samples
 from presta.app.lims import sync_samples
 
-from client import Client
 from celery import chain
 
 
@@ -56,6 +55,10 @@ def make_parser(parser):
     parser.add_argument('--emit_events', action='store_true',
                         help='sends events to router')
 
+    subparsers = parser.add_subparsers(help='')
+    parser_a = subparsers.add_parser('searching-for', help='')
+    parser_a.add_argument('batches', action="store_true", help='')
+
 
 def implementation(logger, args):
     workflow = SyncLimsWorkflow(args=args, logger=logger)
@@ -65,5 +68,6 @@ def implementation(logger, args):
 def do_register(registration_list):
     registration_list.append(('sync', help_doc, make_parser,
                               implementation))
+
 
 

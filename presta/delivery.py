@@ -84,7 +84,8 @@ class DeliveryWorkflow(object):
         merge = dict() if self.merge else None
 
         for bid in bids:
-            merge[bid] = dict() if self.merge and bid not in merge else merge[bid]
+            if merge and bid not in merge:
+                merge[bid] = dict()
             if bid in datasets_info:
                 for f in datasets_info[bid]:
                     src = f.get('filepath')
@@ -97,7 +98,15 @@ class DeliveryWorkflow(object):
                         [sample_label.replace(' ', '_'), read])
                     sample_label = '.'.join([sample_label, ext])
                     dst = os.path.join(opath, self.batch_id, sample_label)
-                    if not self.merge:
+
+                    if merge and bid in merge:
+                        merge[bid][ext] = dict() if ext not in merge[bid] else merge[bid][ext]
+                        if read not in merge[bid][ext]:
+                            merge[bid][ext][read] = dict(src=list(), dst=dst)
+                        else:
+                            merge[bid][ext][read]['src'].append(src)
+
+                    elif not merge:
                         self.logger.info("Coping {} into {}".format(src, dst))
                         if os.path.isfile(dst):
                             self.logger.info('{} skipped'.format(os.path.basename(
@@ -107,12 +116,8 @@ class DeliveryWorkflow(object):
                                 copy.si(src, dst).delay()
                                 self.logger.info(
                                     '{} copied'.format(os.path.basename(dst)))
-                    else:
-                        merge[bid][ext] = dict() if ext not in merge[bid] else merge[bid][ext]
-                        if read not in merge[bid][ext]:
-                            merge[bid][ext][read] = dict(src=list(), dst=dst)
-                        else:
-                            merge[bid][ext][read]['src'].append(src)
+
+
 
             else:
                 msg = 'I have not found any file related to this ' \
