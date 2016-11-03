@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 from . import app
 from alta.bims import Bims
+from presta.utils import get_conf
 from presta.app.router import dispatch_event
 from celery import chain
 
@@ -11,6 +12,7 @@ from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 
 DENIED_ANALYSIS = ['full-analysis']
+
 
 @app.task(name='presta.app.lims.sync_samples')
 def sync_samples(samples, **kwargs):
@@ -102,6 +104,44 @@ def publish_analysis_requests(samples, bika_conf):
 
         logger.info('Nothing to publish')
 
+    return True
+
+
+@app.task(name='presta.app.lims.search_batches_to_sync')
+def search_batches_to_sync(**kwargs):
+    conf = get_conf(logger)
+    bika_conf = conf.get_section('bika')
+    bika = __init_bika(bika_conf)
+
+    # get open batches
+    params = dict(Subject='open')
+    batches = bika.client.get_batches(params)
+    bids = [b.get('id') for b in batches.get('objects')]
+
+    # search for
+    for batch_id in bids:
+        params = dict(title=batch_id)
+        ars = bika.client.get_analysis_requests(params)
+
+        # for ar in ars['objects']:
+        #     ready = True
+        #     if ar.get('sample_type')
+        #     for a in ar['Analyses']:
+
+    return True
+
+
+@app.task(name='presta.app.lims.search_worksheets_to_sync')
+def search_worksheets_to_sync(**kwargs):
+    conf = get_conf(logger)
+    bika_conf = conf.get_section('bika')
+
+    return True
+
+@app.task(name='presta.app.lims.search_samples_to_sync')
+def search_samples_to_sync(**kwargs):
+    conf = get_conf(logger)
+    bika_conf = conf.get_section('bika')
     return True
 
 

@@ -174,7 +174,8 @@ class PreprocessingWorkflow(object):
             dispatch_event.si(event='fastq_ready',
                               params=dict(ds_path=self.ds['path'],
                                           export_path=self.fqc['export_path'],
-                                          rerun=True,
+                                          force=True,
+                                          rd_label=self.rd['label'],
                                           emit_events=self.emit_events)),
         ).delay()
 
@@ -182,6 +183,7 @@ class PreprocessingWorkflow(object):
 help_doc = """
 Process a rundir
 """
+
 
 def make_parser(parser):
     parser.add_argument('--rd_path', metavar="PATH",

@@ -14,3 +14,30 @@ def check_rd_ready_to_be_preprocessed():
                       params=dict(emit_events=True),
                       ).delay()
     return True
+
+
+@app.task(name='presta.app.cron.check_batches_ready_to_be_closed')
+def check_batches_ready_to_be_closed():
+    logger.info('Cron Task: searching for batches ready to be closed...')
+    dispatch_event.si(event='check_batches',
+                      params=dict(emit_events=True),
+                      ).delay()
+    return True
+
+
+@app.task(name='presta.app.cron.check_worksheets_ready_to_be_closed')
+def check_worksheets_ready_to_be_closed():
+    logger.info('Cron Task: searching for worksheets ready to be closed...')
+    dispatch_event.si(event='check_worksheets',
+                      params=dict(emit_events=True),
+                      ).delay()
+    return True
+
+
+@app.task(name='presta.app.cron.check_samples_ready_to_be_published')
+def check_samples_ready_to_be_published():
+    logger.info('Cron Task: searching for samples ready to be published...')
+    dispatch_event.si(event='check_samples',
+                      params=dict(emit_events=True),
+                      ).delay()
+    return True

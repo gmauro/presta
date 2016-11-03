@@ -61,10 +61,10 @@ def run_presta_proc(**kwargs):
 @app.task(name='presta.app.tasks.run_presta_qc')
 def run_presta_qc(**kwargs):
     emit_events = kwargs.get('emit_events', False)
-    rundir_label = kwargs.get('rundir_label')
+    rundir_label = kwargs.get('rd_label')
     ds_path = kwargs.get('ds_path')
     export_path = kwargs.get('export_path')
-    rerun = kwargs.get('rerun')
+    rerun = kwargs.get('force')
 
     cmd_line = ['presta', 'qc']
 
@@ -81,6 +81,26 @@ def run_presta_qc(**kwargs):
 
     result = runJob(cmd_line, logger)
     return True if result else False
+
+
+@app.task(name='presta.app.tasks.run_presta_sync')
+def run_presta_sync(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    rundir_label = kwargs.get('rd_label')
+    force = kwargs.get('force')
+
+    cmd_line = ['presta', 'sync']
+
+    if emit_events:
+        cmd_line.append('--emit_events')
+    if rundir_label:
+        cmd_line.extend(['--rundir_label', rundir_label])
+    if force:
+        cmd_line.append('--force')
+
+    result = runJob(cmd_line, logger)
+    return True if result else False
+
 
 @app.task(name='presta.app.tasks.rd_collect_fastq')
 def rd_collect_fastq(**kwargs):
