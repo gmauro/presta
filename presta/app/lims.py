@@ -3,7 +3,6 @@ from __future__ import absolute_import
 from . import app
 from alta.bims import Bims
 from presta.utils import get_conf
-from presta.app.router import dispatch_event
 from celery import chain
 
 import os
@@ -137,6 +136,7 @@ def search_worksheets_to_sync(**kwargs):
     bika_conf = conf.get_section('bika')
 
     return True
+
 
 @app.task(name='presta.app.lims.search_samples_to_sync')
 def search_samples_to_sync(**kwargs):

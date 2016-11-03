@@ -2,8 +2,7 @@ from __future__ import absolute_import
 
 from . import app
 from presta.app.tasks import run_presta_check, run_presta_proc, run_presta_qc, run_presta_sync
-from presta.app.lims import search_batches_to_sync, search_worksheets_to_sync, \
-    search_samples_to_sync
+from presta.app.lims import search_batches_to_sync, search_worksheets_to_sync, search_samples_to_sync
 
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
