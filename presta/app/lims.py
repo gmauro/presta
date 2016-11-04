@@ -15,7 +15,6 @@ DENIED_SAMPLE_TYPES = ['FLOWCELL', 'POOL']
 
 @app.task(name='presta.app.lims.sync_samples')
 def sync_samples(samples, **kwargs):
-    logger.info('here {}'.format(samples))
     bika_conf = kwargs.get('conf')
     result = kwargs.get('result', '1')
 
@@ -30,6 +29,17 @@ def sync_samples(samples, **kwargs):
 
     return True
 
+@app.task(name='presta.app.lims.sync_batches')
+def sync_batches(batches, **kwargs):
+    bika_conf = kwargs.get('conf')
+
+    if batches and len(batches) > 0:
+        pipeline = chain(
+            close_batches.si(batches, bika_conf)
+        )
+        pipeline.delay()
+
+    return True
 
 @app.task(name='presta.app.lims.sync_analysis_requests')
 def sync_analysis_requests(samples, bika_conf):
@@ -107,6 +117,23 @@ def publish_analysis_requests(samples, bika_conf):
     return True
 
 
+@app.task(name='presta.app.lims.close_batches')
+def close_batches(batches, bika_conf):
+    if batches and len(batches) > 0:
+        paths = __get_batch_paths(batches=batches, review_state='open', bika_conf=bika_conf)
+
+        if len(paths) > 0:
+            logger.info('Close {} batches'.format(len(paths)))
+            bika = __init_bika(bika_conf=bika_conf)
+            res = bika.client.close_batches(paths)
+            logger.info('Close Result: {}'.format(res))
+            return res.get('success')
+
+        logger.info('Nothing to close')
+
+    return True
+
+
 @app.task(name='presta.app.lims.search_batches_to_sync')
 def search_batches_to_sync(**kwargs):
     emit_events = kwargs.get('emit_events', False)
@@ -146,7 +173,8 @@ def search_batches_to_sync(**kwargs):
 
     if emit_events:
         pipeline = chain(
-                sync_samples.si(samples, conf=bika_conf)
+            sync_samples.si(samples, conf=bika_conf),
+            sync_batches.si(batches, conf=bika_conf),
         )
         pipeline.delay()
 
@@ -186,6 +214,18 @@ def __get_analysis_paths(samples, review_state, bika_conf):
         for a in ar['Analyses']:
             if str(a['id']) not in DENIED_ANALYSIS and str(a['review_state']) in [review_state]:
                 paths.append(os.path.join(ar['path'], a['id']))
+
+    return paths
+
+
+def __get_batches_paths(batches, review_state, bika_conf):
+    bika = __init_bika(bika_conf)
+    ids = [b.get('batch_id') for b in batches]
+    params = dict(ids='|'.join(ids), Subject='open')
+
+    res = bika.client.get_batches(params)
+
+    paths = [b.get('path') for b in res['objects']]
 
     return paths
 
