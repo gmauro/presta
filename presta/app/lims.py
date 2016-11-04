@@ -15,6 +15,7 @@ DENIED_SAMPLE_TYPES = ['FLOWCELL', 'POOL']
 
 @app.task(name='presta.app.lims.sync_samples')
 def sync_samples(samples, **kwargs):
+    logger.info('here {}'.format(samples))
     bika_conf = kwargs.get('conf')
     result = kwargs.get('result', '1')
 
@@ -108,7 +109,7 @@ def publish_analysis_requests(samples, bika_conf):
 
 @app.task(name='presta.app.lims.search_batches_to_sync')
 def search_batches_to_sync(**kwargs):
-    emit_event = kwargs.get('emit_event', False)
+    emit_events = kwargs.get('emit_events', False)
     conf = get_conf(logger, None)
     bika_conf = conf.get_section('bika')
     bika = __init_bika(bika_conf)
@@ -143,7 +144,7 @@ def search_batches_to_sync(**kwargs):
             batches.append(dict(batch_id=batch_id))
             samples.append(sample)
 
-    if emit_event:
+    if emit_events:
         pipeline = chain(
                 sync_samples.si(samples, conf=bika_conf)
         )
