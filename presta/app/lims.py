@@ -108,7 +108,7 @@ def publish_analysis_requests(samples, bika_conf):
 
 @app.task(name='presta.app.lims.search_batches_to_sync')
 def search_batches_to_sync(**kwargs):
-    conf = get_conf(logger)
+    conf = get_conf(logger, None)
     bika_conf = conf.get_section('bika')
     bika = __init_bika(bika_conf)
 
