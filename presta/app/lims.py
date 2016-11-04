@@ -118,7 +118,9 @@ def search_batches_to_sync(**kwargs):
     bids = [b.get('id') for b in batches.get('objects')]
 
     # search for
+    batches = list()
     samples = list()
+
     for batch_id in bids:
         params = dict(title=batch_id)
         ars = bika.client.get_analysis_requests(params)
@@ -137,13 +139,10 @@ def search_batches_to_sync(**kwargs):
                 break
 
         if ready:
-            logger.info('{} to close'.format(batch_id))
+            batches.append(dict(batch_id=batch_id))
             samples.append(sample)
 
-    if len(samples) > 0:
-        logger.info('samples: {}'.format(samples))
-
-    return True
+    return batches, samples
 
 
 @app.task(name='presta.app.lims.search_worksheets_to_sync')
