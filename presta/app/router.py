@@ -51,7 +51,7 @@ def check_batches(params):
         search_batches_to_sync.__name__)
     )
 
-    batches, samples = search_batches_to_sync.si(**params).delay()
+    batches, samples = search_batches_to_sync.si(**params).get()
     logger.info('ready: {}'.format(batches))
 
 @task
