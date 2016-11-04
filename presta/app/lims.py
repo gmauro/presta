@@ -124,20 +124,21 @@ def search_batches_to_sync(**kwargs):
         ars = bika.client.get_analysis_requests(params)
 
         ready = True
-
+        sample = None
         for ar in ars['objects']:
 
             if ar.get('SampleType') in DENIED_SAMPLE_TYPES:
-                samples.append(dict(sample_id=ar['id']))
+                sample = dict(sample_id=ar['id'])
                 continue
 
             if ar.get('review_state') not in ['published']:
                 ready = False
-                samples.pop()
+                sample = None
                 break
 
         if ready:
             logger.info('{} to close'.format(batch_id))
+            samples.append(sample)
 
     if len(samples) > 0:
         logger.info('samples: {}'.format(samples))
