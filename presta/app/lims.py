@@ -108,6 +108,7 @@ def publish_analysis_requests(samples, bika_conf):
 
 @app.task(name='presta.app.lims.search_batches_to_sync')
 def search_batches_to_sync(**kwargs):
+    emit_event = kwargs.get('emit_event', False)
     conf = get_conf(logger, None)
     bika_conf = conf.get_section('bika')
     bika = __init_bika(bika_conf)
@@ -142,7 +143,13 @@ def search_batches_to_sync(**kwargs):
             batches.append(dict(batch_id=batch_id))
             samples.append(sample)
 
-    return batches, samples
+    if emit_event:
+        pipeline = chain(
+                sync_samples.si(samples, conf=bika_conf)
+        )
+        pipeline.delay()
+
+    return True
 
 
 @app.task(name='presta.app.lims.search_worksheets_to_sync')

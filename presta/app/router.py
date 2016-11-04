@@ -51,8 +51,8 @@ def check_batches(params):
         search_batches_to_sync.__name__)
     )
 
-    batches, samples = search_batches_to_sync.delay(**params).get()
-    logger.info('ready: {}'.format(batches))
+    search_batches_to_sync.si(**params).delay()
+
 
 @task
 def check_worksheets(params):
