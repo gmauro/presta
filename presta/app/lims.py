@@ -120,7 +120,7 @@ def publish_analysis_requests(samples, bika_conf):
 @app.task(name='presta.app.lims.close_batches')
 def close_batches(batches, bika_conf):
     if batches and len(batches) > 0:
-        paths = __get_batch_paths(batches=batches, review_state='open', bika_conf=bika_conf)
+        paths = __get_batches_paths(batches=batches, review_state='open', bika_conf=bika_conf)
 
         if len(paths) > 0:
             logger.info('Close {} batches'.format(len(paths)))
