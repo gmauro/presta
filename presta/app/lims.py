@@ -11,7 +11,7 @@ from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 
 DENIED_ANALYSIS = ['full-analysis']
-
+DENIED_SAMPLE_TYPES = ['FLOWCELL', 'POOL']
 
 @app.task(name='presta.app.lims.sync_samples')
 def sync_samples(samples, **kwargs):
@@ -118,14 +118,29 @@ def search_batches_to_sync(**kwargs):
     bids = [b.get('id') for b in batches.get('objects')]
 
     # search for
+    samples = list()
     for batch_id in bids:
         params = dict(title=batch_id)
         ars = bika.client.get_analysis_requests(params)
 
-        # for ar in ars['objects']:
-        #     ready = True
-        #     if ar.get('sample_type')
-        #     for a in ar['Analyses']:
+        ready = True
+
+        for ar in ars['objects']:
+
+            if ar.get('SampleType') in DENIED_SAMPLE_TYPES:
+                samples.append(dict(sample_id=ar['id']))
+                continue
+
+            if ar.get('review_state') not in ['published']:
+                ready = False
+                samples.pop()
+                break
+
+        if ready:
+            logger.info('{} to close'.format(batch_id))
+
+    if len(samples) > 0:
+        logger.info('samples: {}'.format(samples))
 
     return True
 
@@ -134,6 +149,12 @@ def search_batches_to_sync(**kwargs):
 def search_worksheets_to_sync(**kwargs):
     conf = get_conf(logger)
     bika_conf = conf.get_section('bika')
+    bika = __init_bika(bika_conf)
+
+    # get open worksheets
+    params = dict(Subject='open')
+    worksheets = bika.client.get_worksheets(params)
+    wids = [b.get('id') for b in worksheets.get('objects')]
 
     return True
 
