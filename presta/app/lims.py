@@ -233,7 +233,7 @@ def __get_batches_paths(batches, review_state, bika_conf):
 def __get_ar_to_publish_paths(samples, bika_conf):
     bika = __init_bika(bika_conf)
     ids = [s.get('sample_id') for s in samples]
-    params = dict(id=ids)
+    params = dict(id=ids, review_state='sample_received')
 
     ars = bika.client.query_analysis_request(params)
     paths = list()
