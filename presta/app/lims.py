@@ -33,7 +33,7 @@ def sync_samples(samples, **kwargs):
 @app.task(name='presta.app.lims.sync_batches')
 def sync_batches(batches, **kwargs):
     bika_conf = kwargs.get('conf')
-    logger.info('sync_batches: {}'.format(batches))
+
     if batches and len(batches) > 0:
         pipeline = chain(
             close_batches.si(batches, bika_conf)
@@ -120,10 +120,9 @@ def publish_analysis_requests(samples, bika_conf):
 
 @app.task(name='presta.app.lims.close_batches')
 def close_batches(batches, bika_conf):
-    logger.info('close_batches: {}'.format(batches))
     if batches and len(batches) > 0:
         paths = __get_batches_paths(batches=batches, review_state='open', bika_conf=bika_conf)
-        logger.info('paths: {}'.format(paths))
+
         if len(paths) > 0:
             logger.info('Close {} batches'.format(len(paths)))
             bika = __init_bika(bika_conf=bika_conf)
@@ -224,11 +223,10 @@ def __get_batches_paths(batches, review_state, bika_conf):
     bika = __init_bika(bika_conf)
     ids = [b.get('batch_id') for b in batches]
     params = dict(ids='|'.join(ids), Subject='open')
-    logger.info('get_batches: params {}'.format(params))
+
     res = bika.client.get_batches(params)
-    logger.info('get_batches: res {}'.format(res))
     paths = [b.get('path') for b in res['objects']]
-    logger.info('get_batches: paths {}'.format(paths))
+
     return paths
 
 
@@ -243,7 +241,7 @@ def __get_ar_to_publish_paths(samples, bika_conf):
     for ar in ars['objects']:
         ready_to_publish = True
         for a in ar['Analyses']:
-            if str(a['review_state']) not in ['verified']:
+            if str(a['review_state']) not in ['verified', 'published']:
                 ready_to_publish = False
                 break
 
