@@ -143,21 +143,21 @@ def search_batches_to_sync(**kwargs):
     bika = __init_bika(bika_conf)
 
     # get open batches
-    params = dict(Subject='open')
-    batches = bika.client.get_batches(params)
-    bids = [b.get('id') for b in batches.get('objects')]
+    params = dict(review_state='open')
+    batches = bika.client.query_batches(params)
+    bids = [b.get('id') for b in batches]
 
     # search for
     batches = list()
     samples = list()
 
     for batch_id in bids:
-        params = dict(title=batch_id)
-        ars = bika.client.get_analysis_requests(params)
+        params = dict(batch_id=batch_id)
+        ars = bika.client.query_analysis_request(params)
 
         ready = True
         sample = None
-        for ar in ars['objects']:
+        for ar in ars:
 
             if ar.get('SampleType') in DENIED_SAMPLE_TYPES:
                 sample = dict(sample_id=ar['id'])
@@ -189,9 +189,9 @@ def search_worksheets_to_sync(**kwargs):
     bika = __init_bika(bika_conf)
 
     # get open worksheets
-    params = dict(Subject='open')
-    worksheets = bika.client.get_worksheets(params)
-    wids = [b.get('id') for b in worksheets.get('objects')]
+    params = dict(review_state='open')
+    worksheets = bika.client.query_worksheets(params)
+    wids = [b.get('id') for b in worksheets]
 
     return True
 
@@ -206,12 +206,12 @@ def search_samples_to_sync(**kwargs):
 def __get_analysis_paths(samples, review_state, bika_conf):
     bika = __init_bika(bika_conf)
     ids = [s.get('sample_id') for s in samples]
-    params = dict(ids='|'.join(ids))
+    params = dict(id=ids)
 
-    ars = bika.client.get_analysis_requests(params)
+    ars = bika.client.query_analysis_request(params)
     paths = list()
 
-    for ar in ars['objects']:
+    for ar in ars:
         for a in ar['Analyses']:
             if str(a['id']) not in DENIED_ANALYSIS and str(a['review_state']) in [review_state]:
                 paths.append(os.path.join(ar['path'], a['id']))
@@ -222,10 +222,10 @@ def __get_analysis_paths(samples, review_state, bika_conf):
 def __get_batches_paths(batches, review_state, bika_conf):
     bika = __init_bika(bika_conf)
     ids = [b.get('batch_id') for b in batches]
-    params = dict(ids='|'.join(ids), Subject='open')
+    params = dict(id=ids, review_state='open')
 
-    res = bika.client.get_batches(params)
-    paths = [b.get('path') for b in res['objects']]
+    res = bika.client.query_batches(params)
+    paths = [b.get('path') for b in res]
 
     return paths
 
@@ -233,12 +233,12 @@ def __get_batches_paths(batches, review_state, bika_conf):
 def __get_ar_to_publish_paths(samples, bika_conf):
     bika = __init_bika(bika_conf)
     ids = [s.get('sample_id') for s in samples]
-    params = dict(ids='|'.join(ids))
+    params = dict(id=ids)
 
-    ars = bika.client.get_analysis_requests(params)
+    ars = bika.client.query_analysis_request(params)
     paths = list()
 
-    for ar in ars['objects']:
+    for ar in ars:
         ready_to_publish = True
         for a in ar['Analyses']:
             if str(a['review_state']) not in ['verified', 'published']:
