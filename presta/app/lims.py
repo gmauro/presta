@@ -27,6 +27,9 @@ def sync_samples(samples, **kwargs):
         )
         pipeline.delay()
 
+    else:
+        logger.info('No samples to sync')
+
     return True
 
 
@@ -40,7 +43,27 @@ def sync_batches(batches, **kwargs):
         )
         pipeline.delay()
 
+    else:
+        logger.info('No batches to sync')
+
     return True
+
+
+@app.task(name='presta.app.lims.sync_worksheets')
+def sync_worksheets(worksheets, **kwargs):
+    bika_conf = kwargs.get('conf')
+
+    if worksheets and len(worksheets) > 0:
+        pipeline = chain(
+            close_worksheets.si(worksheets, bika_conf)
+        )
+        pipeline.delay()
+
+    else:
+        logger.info('No worksheets to sync')
+
+    return True
+
 
 @app.task(name='presta.app.lims.sync_analysis_requests')
 def sync_analysis_requests(samples, bika_conf):
@@ -134,6 +157,21 @@ def close_batches(batches, bika_conf):
 
     return True
 
+@app.task(name='presta.app.lims.close_worksheets')
+def close_worksheets(worksheets, bika_conf):
+    if worksheets and len(worksheets) > 0:
+        paths = __get_worksheets_paths(worksheets=worksheets, review_state='open', bika_conf=bika_conf)
+
+        if len(paths) > 0:
+            logger.info('Close {} worksheets'.format(len(paths)))
+            bika = __init_bika(bika_conf=bika_conf)
+            res = bika.client.close_worksheets(paths)
+            logger.info('Close Result: {}'.format(res))
+            return res.get('success')
+
+        logger.info('Nothing to close')
+
+    return True
 
 @app.task(name='presta.app.lims.search_batches_to_sync')
 def search_batches_to_sync(**kwargs):
@@ -184,14 +222,34 @@ def search_batches_to_sync(**kwargs):
 
 @app.task(name='presta.app.lims.search_worksheets_to_sync')
 def search_worksheets_to_sync(**kwargs):
-    conf = get_conf(logger)
+    emit_events = kwargs.get('emit_events', False)
+    conf = get_conf(logger, None)
     bika_conf = conf.get_section('bika')
     bika = __init_bika(bika_conf)
 
     # get open worksheets
     params = dict(review_state='open')
-    worksheets = bika.client.query_worksheets(params)
-    wids = [b.get('id') for b in worksheets]
+    ws = bika.client.query_worksheets(params)
+    worksheets = list()
+
+    for w in ws:
+        ready = True
+        for r in w.get('Remarks'):
+            ars = bika.client.query_analysis_request(id=r['request_id'])
+            if len(ars) == 1:
+                ar = ars.pop()
+                for a in ar.get('Analyses'):
+                    if str(a['id']) == r.get('analysis_id') and str(a['review_state']) not in ['verified', 'published']:
+                        ready = False
+                        break
+        if ready:
+            worksheets.append(dict(qorksheet_id=w.get('id')))
+
+    if emit_events:
+        pipeline = chain(
+            sync_worksheets.si(worksheets, conf=bika_conf)
+        )
+        pipeline.delay()
 
     return True
 
@@ -225,7 +283,18 @@ def __get_batches_paths(batches, review_state, bika_conf):
     params = dict(id=ids, review_state='open')
 
     res = bika.client.query_batches(params)
-    paths = [b.get('path') for b in res]
+    paths = [r.get('path') for r in res]
+
+    return paths
+
+
+def __get_workskeets_paths(workskeets, review_state, bika_conf):
+    bika = __init_bika(bika_conf)
+    ids = [w.get('worksheets_id') for w in workskeets]
+    params = dict(id=ids, review_state='open')
+
+    res = bika.client.query_worksheets(params)
+    paths = [r.get('path') for r in res]
 
     return paths
 
