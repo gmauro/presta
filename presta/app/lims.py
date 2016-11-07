@@ -236,7 +236,7 @@ def search_worksheets_to_sync(**kwargs):
     for w in ws:
         ready = True
         for r in json.loads(w.get('Remarks')):
-            ars = bika.client.query_analysis_request(id=r['request_id'])
+            ars = bika.client.query_analysis_request(params=dict(id=r['request_id']))
             if len(ars) == 1:
                 ar = ars.pop()
                 for a in ar.get('Analyses'):
