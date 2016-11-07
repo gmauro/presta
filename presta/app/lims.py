@@ -6,6 +6,7 @@ from presta.utils import get_conf
 from celery import chain
 
 import os
+import json
 
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
@@ -234,7 +235,7 @@ def search_worksheets_to_sync(**kwargs):
 
     for w in ws:
         ready = True
-        for r in w.get('Remarks'):
+        for r in json.loads(w.get('Remarks')):
             ars = bika.client.query_analysis_request(id=r['request_id'])
             if len(ars) == 1:
                 ar = ars.pop()
