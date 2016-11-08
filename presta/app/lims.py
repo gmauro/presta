@@ -289,7 +289,7 @@ def __get_batches_paths(batches, review_state, bika_conf):
     return paths
 
 
-def __get_workskeets_paths(workskeets, review_state, bika_conf):
+def __get_worksheets_paths(workskeets, review_state, bika_conf):
     bika = __init_bika(bika_conf)
     ids = [w.get('worksheets_id') for w in workskeets]
     params = dict(id=ids, review_state='open')
