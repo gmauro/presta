@@ -209,7 +209,8 @@ def search_batches_to_sync(**kwargs):
 
         if ready:
             batches.append(dict(batch_id=batch_id))
-            samples.append(sample)
+            if sample:
+                samples.append(sample)
 
     if emit_events:
         pipeline = chain(
@@ -231,24 +232,34 @@ def search_worksheets_to_sync(**kwargs):
     # get open worksheets
     params = dict(review_state='open')
     ws = bika.client.query_worksheets(params)
+
     worksheets = list()
+    samples = list()
 
     for w in ws:
         ready = True
+        sample = None
+
         for r in json.loads(w.get('Remarks')):
             ars = bika.client.query_analysis_request(params=dict(id=r['request_id']))
             if len(ars) == 1:
                 ar = ars.pop()
-                for a in ar.get('Analyses'):
-                    if str(a['id']) == r.get('analysis_id') and str(a['review_state']) not in ['verified', 'published']:
-                        ready = False
-                        break
+                if ar.get('SampleType') in DENIED_SAMPLE_TYPES:
+                    sample = dict(sample_id=ar['id'])
+                else:
+                    for a in ar.get('Analyses'):
+                        if str(a['id']) == r.get('analysis_id') and str(a['review_state']) not in ['verified', 'published']:
+                            ready = False
+                            break
         if ready:
             worksheets.append(dict(worksheet_id=w.get('id')))
+            if sample:
+                samples.append(sample)
 
     if emit_events:
         pipeline = chain(
-            sync_worksheets.si(worksheets, conf=bika_conf)
+            sync_samples.si(samples, conf=bika_conf),
+            sync_worksheets.si(worksheets, conf=bika_conf),
         )
         pipeline.delay()
 
