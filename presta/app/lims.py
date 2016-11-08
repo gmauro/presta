@@ -291,7 +291,7 @@ def __get_batches_paths(batches, review_state, bika_conf):
 
 def __get_worksheets_paths(worksheets, review_state, bika_conf):
     bika = __init_bika(bika_conf)
-    ids = [w.get('worksheets_id') for w in worksheets]
+    ids = [w.get('worksheet_id') for w in worksheets]
     params = dict(id=ids, review_state='open')
 
     res = bika.client.query_worksheets(params)
