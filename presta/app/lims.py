@@ -244,7 +244,7 @@ def search_worksheets_to_sync(**kwargs):
                         ready = False
                         break
         if ready:
-            worksheets.append(dict(qorksheet_id=w.get('id')))
+            worksheets.append(dict(worksheet_id=w.get('id')))
 
     if emit_events:
         pipeline = chain(
