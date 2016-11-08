@@ -33,6 +33,8 @@ class SyncLimsWorkflow(object):
                               ' Use --force option to bypass this check'.format(self.rundir_label))
             sys.exit()
 
+        self.logger.info('Synchronizing {}'.format(self.rundir_label))
+
         sync_task = chain(rd_collect_samples.si(conf=self.irods_conf,
                                                 samplesheet_filename=self.samplesheet_filename,
                                                 rd_label=self.rundir_label),
