@@ -180,7 +180,9 @@ def search_batches_to_sync(**kwargs):
     bika = __init_bika(bika_conf)
 
     batches, samples = bika.get_batches_ready_to_be_closed(also_samples=True)
-
+    logger.info(batches)
+    logger.info(samples)
+    return True
     if emit_events:
         pipeline = chain(
             sync_samples.si(samples, conf=bika_conf),
