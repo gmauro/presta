@@ -11,8 +11,6 @@ import json
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 
-DENIED_ANALYSIS = ['full-analysis']
-DENIED_SAMPLE_TYPES = ['FLOWCELL', 'POOL']
 
 @app.task(name='presta.app.lims.sync_samples')
 def sync_samples(samples, **kwargs):
@@ -77,16 +75,16 @@ def sync_analysis_requests(samples, bika_conf):
 @app.task(name='presta.app.lims.submit_analyses')
 def submit_analyses(samples, bika_conf, result):
     if samples and len(samples) > 0:
-        paths = __get_analysis_paths(samples=samples, review_state='sample_received', bika_conf=bika_conf)
+        bika = __init_bika(bika_conf)
+        analyses = bika.get_analyses_ready_to_be_synchronized(samples=samples, action='submit')
 
-        if len(paths) > 0:
-            logger.info('Submit {} analyses'.format(len(paths)))
-            bika = __init_bika(bika_conf=bika_conf, role='analyst')
-            res = bika.client.submit_analyses(paths, result)
+        if isinstance(analyses, list) and len(analyses) > 0:
+            logger.info('Submit {} analyses'.format(len(analyses)))
+            res = bika.submit_analyses(analyses, result)
             logger.info('Submit Result {}'.format(res))
             return res.get('success')
 
-        logger.info('Nothing to submit')
+    logger.info('Nothing to submit')
 
     return True
 
@@ -94,16 +92,16 @@ def submit_analyses(samples, bika_conf, result):
 @app.task(name='presta.app.lims.verify_analyses')
 def verify_analyses(samples, bika_conf):
     if samples and len(samples) > 0:
-        paths = __get_analysis_paths(samples=samples, review_state='to_be_verified', bika_conf=bika_conf)
+        bika = __init_bika(bika_conf)
+        analyses = bika.get_analyses_ready_to_be_synchronized(samples=samples, action='verify')
 
-        if len(paths) > 0:
-            logger.info('Verify {} analyses'.format(len(paths)))
-            bika = __init_bika(bika_conf=bika_conf)
-            res = bika.client.verify_analyses(paths)
+        if isinstance(analyses, list) and len(analyses) > 0:
+            logger.info('Verify {} analyses'.format(len(analyses)))
+            res = bika.verify_analyses(analyses)
             logger.info('Verify Result: {}'.format(res))
             return res.get('success')
 
-        logger.info('Nothing to verify')
+    logger.info('Nothing to verify')
 
     return True
 
@@ -111,16 +109,16 @@ def verify_analyses(samples, bika_conf):
 @app.task(name='presta.app.lims.publish_analyses')
 def publish_analyses(samples, bika_conf):
     if samples and len(samples) > 0:
-        paths = __get_analysis_paths(samples=samples, review_state='verified', bika_conf=bika_conf)
+        bika = __init_bika(bika_conf)
+        analyses = bika.get_analyses_ready_to_be_synchronized(samples=samples, action='publish')
 
-        if len(paths) > 0:
-            logger.info('Publish {} analyses'.format(len(paths)))
-            bika = __init_bika(bika_conf=bika_conf)
-            res = bika.client.publish_analyses(paths)
+        if isinstance(analyses, list) and len(analyses) > 0:
+            logger.info('Publish {} analyses'.format(len(analyses)))
+            res = bika.publish_analyses(analyses)
             logger.info('Publish Result: {}'.format(res))
             return res.get('success')
 
-        logger.info('Nothing to publish')
+    logger.info('Nothing to publish')
 
     return True
 
@@ -128,51 +126,51 @@ def publish_analyses(samples, bika_conf):
 @app.task(name='presta.app.lims.publish_analysis_requests')
 def publish_analysis_requests(samples, bika_conf):
     if samples and len(samples) > 0:
-        paths = __get_ar_to_publish_paths(samples=samples, bika_conf=bika_conf)
+        bika = __init_bika(bika_conf)
+        analysis_requests = bika.get_analysis_requests_ready_to_be_published(samples=samples)
 
-        if len(paths) > 0:
-            logger.info('Publish {} analysis requests'.format(len(paths)))
-            bika = __init_bika(bika_conf=bika_conf)
-            res = bika.client.publish_analysis_requests(paths)
+        if isinstance(analysis_requests, list) and len(analysis_requests) > 0:
+            logger.info('Publish {} analysis requests'.format(len(analysis_requests)))
+            res = bika.publish_analysis_requests(analysis_requests)
             logger.info('Publish Result: {}'.format(res))
             return res.get('success')
 
-        logger.info('Nothing to publish')
+    logger.info('Nothing to publish')
 
     return True
 
 
 @app.task(name='presta.app.lims.close_batches')
 def close_batches(batches, bika_conf):
-    if batches and len(batches) > 0:
-        paths = __get_batches_paths(batches=batches, review_state='open', bika_conf=bika_conf)
+    bika = __init_bika(bika_conf)
+    batches = bika.get_batches_ready_to_be_closed(batches=batches)
 
-        if len(paths) > 0:
-            logger.info('Close {} batches'.format(len(paths)))
-            bika = __init_bika(bika_conf=bika_conf)
-            res = bika.client.close_batches(paths)
-            logger.info('Close Result: {}'.format(res))
-            return res.get('success')
+    if isinstance(batches, list) and len(batches) > 0:
+        logger.info('Close {} batches'.format(len(batches)))
+        res = bika.close_batches(batches)
+        logger.info('Close Result: {}'.format(res))
+        return res.get('success')
 
-        logger.info('Nothing to close')
+    logger.info('Nothing to close')
 
     return True
+
 
 @app.task(name='presta.app.lims.close_worksheets')
 def close_worksheets(worksheets, bika_conf):
-    if worksheets and len(worksheets) > 0:
-        paths = __get_worksheets_paths(worksheets=worksheets, review_state='open', bika_conf=bika_conf)
+    bika = __init_bika(bika_conf)
+    worksheets = bika.get_worksheets_ready_to_be_closed(worksheets=worksheets)
 
-        if len(paths) > 0:
-            logger.info('Close {} worksheets'.format(len(paths)))
-            bika = __init_bika(bika_conf=bika_conf)
-            res = bika.client.close_worksheets(paths)
-            logger.info('Close Result: {}'.format(res))
-            return res.get('success')
+    if isinstance(worksheets,list) and len(worksheets) > 0:
+        logger.info('Close {} worksheets'.format(len(worksheets)))
+        res = bika.close_worksheets(worksheets)
+        logger.info('Close Result: {}'.format(res))
+        return res.get('success')
 
-        logger.info('Nothing to close')
+    logger.info('Nothing to close')
 
     return True
+
 
 @app.task(name='presta.app.lims.search_batches_to_sync')
 def search_batches_to_sync(**kwargs):
@@ -181,36 +179,7 @@ def search_batches_to_sync(**kwargs):
     bika_conf = conf.get_section('bika')
     bika = __init_bika(bika_conf)
 
-    # get open batches
-    params = dict(review_state='open')
-    batches = bika.client.query_batches(params)
-    bids = [b.get('id') for b in batches]
-
-    # search for
-    batches = list()
-    samples = list()
-
-    for batch_id in bids:
-        params = dict(batch_id=batch_id)
-        ars = bika.client.query_analysis_request(params)
-
-        ready = True
-        sample = None
-        for ar in ars:
-
-            if ar.get('SampleType') in DENIED_SAMPLE_TYPES:
-                sample = dict(sample_id=ar['id'])
-                continue
-
-            if ar.get('review_state') not in ['published']:
-                ready = False
-                sample = None
-                break
-
-        if ready:
-            batches.append(dict(batch_id=batch_id))
-            if sample:
-                samples.append(sample)
+    batches, samples = bika.get_batches_ready_to_be_closed(also_samples=True)
 
     if emit_events:
         pipeline = chain(
@@ -229,32 +198,7 @@ def search_worksheets_to_sync(**kwargs):
     bika_conf = conf.get_section('bika')
     bika = __init_bika(bika_conf)
 
-    # get open worksheets
-    params = dict(review_state='open')
-    ws = bika.client.query_worksheets(params)
-
-    worksheets = list()
-    samples = list()
-
-    for w in ws:
-        ready = True
-        sample = None
-
-        for r in json.loads(w.get('Remarks')):
-            ars = bika.client.query_analysis_request(params=dict(id=r['request_id']))
-            if len(ars) == 1:
-                ar = ars.pop()
-                if ar.get('SampleType') in DENIED_SAMPLE_TYPES:
-                    sample = dict(sample_id=ar['id'])
-                else:
-                    for a in ar.get('Analyses'):
-                        if str(a['id']) == r.get('analysis_id') and str(a['review_state']) not in ['verified', 'published']:
-                            ready = False
-                            break
-        if ready:
-            worksheets.append(dict(worksheet_id=w.get('id')))
-            if sample:
-                samples.append(sample)
+    worksheets, samples = bika.get_worksheets_ready_to_be_closed(also_samples=True)
 
     if emit_events:
         pipeline = chain(
@@ -271,65 +215,6 @@ def search_samples_to_sync(**kwargs):
     conf = get_conf(logger)
     bika_conf = conf.get_section('bika')
     return True
-
-
-def __get_analysis_paths(samples, review_state, bika_conf):
-    bika = __init_bika(bika_conf)
-    ids = [s.get('sample_id') for s in samples]
-    params = dict(id=ids)
-
-    ars = bika.client.query_analysis_request(params)
-    paths = list()
-
-    for ar in ars:
-        for a in ar['Analyses']:
-            if str(a['id']) not in DENIED_ANALYSIS and str(a['review_state']) in [review_state]:
-                paths.append(os.path.join(ar['path'], a['id']))
-
-    return paths
-
-
-def __get_batches_paths(batches, review_state, bika_conf):
-    bika = __init_bika(bika_conf)
-    ids = [b.get('batch_id') for b in batches]
-    params = dict(id=ids, review_state='open')
-
-    res = bika.client.query_batches(params)
-    paths = [r.get('path') for r in res]
-
-    return paths
-
-
-def __get_worksheets_paths(worksheets, review_state, bika_conf):
-    bika = __init_bika(bika_conf)
-    ids = [w.get('worksheet_id') for w in worksheets]
-    params = dict(id=ids, review_state='open')
-
-    res = bika.client.query_worksheets(params)
-    paths = [r.get('path') for r in res]
-
-    return paths
-
-
-def __get_ar_to_publish_paths(samples, bika_conf):
-    bika = __init_bika(bika_conf)
-    ids = [s.get('sample_id') for s in samples]
-    params = dict(id=ids, review_state='sample_received')
-
-    ars = bika.client.query_analysis_request(params)
-    paths = list()
-
-    for ar in ars:
-        ready_to_publish = True
-        for a in ar['Analyses']:
-            if str(a['review_state']) not in ['verified', 'published']:
-                ready_to_publish = False
-                break
-
-        if ready_to_publish:
-            paths.append(ar['path'])
-
-    return paths
 
 
 def __init_bika(bika_conf, role='admin'):
