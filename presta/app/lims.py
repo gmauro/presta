@@ -16,7 +16,6 @@ logger = get_task_logger(__name__)
 def sync_samples(samples, **kwargs):
     bika_conf = kwargs.get('conf')
     result = kwargs.get('result', '1')
-
     if samples and len(samples) > 0:
         pipeline = chain(
             submit_analyses.si(samples, bika_conf, result),
@@ -180,9 +179,7 @@ def search_batches_to_sync(**kwargs):
     bika = __init_bika(bika_conf)
 
     batches, samples = bika.get_batches_ready_to_be_closed(also_samples=True)
-    logger.info(batches)
-    logger.info(samples)
-    return True
+
     if emit_events:
         pipeline = chain(
             sync_samples.si(samples, conf=bika_conf),
