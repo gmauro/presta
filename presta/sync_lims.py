@@ -25,6 +25,7 @@ class SyncLimsWorkflow(object):
 
         self.emit_events = args.emit_events
         self.force = args.force
+        self.sync_all_analyses = args.sync_all_analyses
 
     def run(self):
         qc_path = os.path.join(self.io_conf.get('qc_export_basepath'), self.rundir_label)
@@ -38,7 +39,8 @@ class SyncLimsWorkflow(object):
         sync_task = chain(rd_collect_samples.si(conf=self.irods_conf,
                                                 samplesheet_filename=self.samplesheet_filename,
                                                 rd_label=self.rundir_label),
-                          sync_samples.s(conf=self.bika_conf),
+                          sync_samples.s(conf=self.bika_conf,
+                                         sync_all_analyses=self.sync_all_analyses),
                           )
 
         sync_task.delay()
@@ -53,7 +55,9 @@ def make_parser(parser):
     parser.add_argument('--rundir_label', '-r', metavar="STRING", required=True,
                         help='Label of the rundir to synchronize')
     parser.add_argument('--force', '-f', action='store_true',
-                        help='force synchronization')
+                        help='force the synchronization even if the qc files are missing')
+    parser.add_argument('--sync_all_analyses', '-a', action='store_true',
+                        help='synchronizes all analysises: pre and post processing')
     parser.add_argument('--emit_events', action='store_true',
                         help='sends events to router')
 

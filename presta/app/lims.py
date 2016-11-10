@@ -16,11 +16,13 @@ logger = get_task_logger(__name__)
 def sync_samples(samples, **kwargs):
     bika_conf = kwargs.get('conf')
     result = kwargs.get('result', '1')
+    sync_all_analyses = kwargs.get('sync_all_analyses', False)
+
     if samples and len(samples) > 0:
         pipeline = chain(
-            submit_analyses.si(samples, bika_conf, result),
-            verify_analyses.si(samples, bika_conf),
-            publish_analyses.si(samples, bika_conf),
+            submit_analyses.si(samples, bika_conf, sync_all_analyses, result),
+            verify_analyses.si(samples, bika_conf, sync_all_analyses),
+            publish_analyses.si(samples, bika_conf, sync_all_analyses),
             publish_analysis_requests.si(samples, bika_conf),
         )
         pipeline.delay()
@@ -72,10 +74,11 @@ def sync_analysis_requests(samples, bika_conf):
 
 
 @app.task(name='presta.app.lims.submit_analyses')
-def submit_analyses(samples, bika_conf, result):
+def submit_analyses(samples, bika_conf, sync_all_analyses=False, result='1'):
     if samples and len(samples) > 0:
         bika = __init_bika(bika_conf)
-        analyses = bika.get_analyses_ready_to_be_synchronized(samples=samples, action='submit')
+        analyses = bika.get_analyses_ready_to_be_synchronized(samples=samples, action='submit',
+                                                              sync_all_analyses=sync_all_analyses)
 
         if isinstance(analyses, list) and len(analyses) > 0:
             logger.info('Submit {} analyses'.format(len(analyses)))
@@ -89,10 +92,11 @@ def submit_analyses(samples, bika_conf, result):
 
 
 @app.task(name='presta.app.lims.verify_analyses')
-def verify_analyses(samples, bika_conf):
+def verify_analyses(samples, bika_conf, sync_all_analyses=False):
     if samples and len(samples) > 0:
         bika = __init_bika(bika_conf)
-        analyses = bika.get_analyses_ready_to_be_synchronized(samples=samples, action='verify')
+        analyses = bika.get_analyses_ready_to_be_synchronized(samples=samples, action='verify',
+                                                              sync_all_analyses=sync_all_analyses)
 
         if isinstance(analyses, list) and len(analyses) > 0:
             logger.info('Verify {} analyses'.format(len(analyses)))
@@ -106,10 +110,11 @@ def verify_analyses(samples, bika_conf):
 
 
 @app.task(name='presta.app.lims.publish_analyses')
-def publish_analyses(samples, bika_conf):
+def publish_analyses(samples, bika_conf, sync_all_analyses=False):
     if samples and len(samples) > 0:
         bika = __init_bika(bika_conf)
-        analyses = bika.get_analyses_ready_to_be_synchronized(samples=samples, action='publish')
+        analyses = bika.get_analyses_ready_to_be_synchronized(samples=samples, action='publish',
+                                                              sync_all_analyses=sync_all_analyses)
 
         if isinstance(analyses, list) and len(analyses) > 0:
             logger.info('Publish {} analyses'.format(len(analyses)))
