@@ -544,8 +544,8 @@ def rd_collect_samples(**kwargs):
             samplesheet = IEMSampleSheetReader(f)
 
         samples = [dict(
-            sample_id=r['Sample_ID'],
-            sample_name=r['Sample_Name']
+            id=r['Sample_ID'],
+            name=r['Sample_Name']
         ) for r in samplesheet.data]
 
     return samples
