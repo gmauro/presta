@@ -5,9 +5,6 @@ from alta.bims import Bims
 from presta.utils import get_conf
 from celery import chain
 
-import os
-import json
-
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 
