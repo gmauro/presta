@@ -61,10 +61,6 @@ def make_parser(parser):
     parser.add_argument('--emit_events', action='store_true',
                         help='sends events to router')
 
-    subparsers = parser.add_subparsers(help='')
-    parser_a = subparsers.add_parser('searching-for', help='')
-    parser_a.add_argument('batches', action="store_true", help='')
-
 
 def implementation(logger, args):
     workflow = SyncLimsWorkflow(args=args, logger=logger)
