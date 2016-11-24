@@ -96,7 +96,7 @@ class DeliveryWorkflow(object):
                     sample_label = '_'.join(
                         [sample_label.replace(' ', '_'), lane, read]) if lane and not self.merge else '_'.join(
                         [sample_label.replace(' ', '_'), read])
-                    sample_label = '.'.join([sample_label, ext])
+                    sample_label = '.'.join([sample_label.replace('/', '_'), ext])
                     dst = os.path.join(opath, self.batch_id, sample_label)
 
                     if merge and bid in merge:
