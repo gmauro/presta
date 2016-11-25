@@ -223,6 +223,9 @@ def check_ownership(**kwargs):
 def copy(src, dest):
     result = False
     try:
+        if os.path.exists(dest):
+            shutil.rmtree(dest)
+
         shutil.copytree(src, dest)
         result = True
     except OSError as e:
