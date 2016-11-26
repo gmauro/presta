@@ -17,6 +17,7 @@ from pkg_resources import resource_filename
 SAMPLES_WITHOUT_BARCODES = [2, 8]
 DEFAULT_INDEX_CYCLES = dict(index='8', index1='8')
 
+
 class IEMRunInfoReader:
     """
     Illumina Experimental Manager RunInfo xml reader.
@@ -56,7 +57,6 @@ class IEMRunInfoReader:
                     read.attrib.update(NumCycles=index_cycles.get('index', DEFAULT_INDEX_CYCLES['index']))
         if write:
             self.tree.write(self.xml_file)
-
 
 
 class IEMSampleSheetReader(csv.DictReader):
@@ -182,6 +182,25 @@ def path_exists(path, logger, force=True):
     return True if os.path.exists(os.path.expanduser(path)) else file_missing(path,
                                                                               logger,
                                                                               force)
+
+
+def sanitize_filename(filename):
+    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+    return ''.join(c for c in filename if c in valid_chars)
+
+
+def format_dataset_filename(sample_label, lane=None, read=None, ext=None):
+    filename = sanitize_filename(sample_label)
+
+    if read:
+        filename = '_'.join(
+            [filename.replace(' ', '_'), lane, read]) if lane else '_'.join(
+            [filename.replace(' ', '_'), read])
+
+    if ext:
+        filename = '.'.join([filename, ext])
+
+    return sanitize_filename(filename)
 
 
 def paths_setup(logger, cf_from_cli=None):
