@@ -296,13 +296,13 @@ def merge_datasets(trigger=None, **kwargs):
     if isinstance(src, list) and len(src) > 0:
 
         cmd_line = ["cat",
-                    " ".join(src),
+                    str(" ".join(src)),
                     ">>" if os.path.exists(dst) and append_to_existing else ">",
-                    dst]
+                   str(dst)]
 
         logger.info(cmd_line)
         result = runJob(cmd_line, logger)
-        logger.info(result)
+
         if os.path.exists(dst):
             return src
 
