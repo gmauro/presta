@@ -20,7 +20,7 @@ from alta.utils import ensure_dir
 from collections import namedtuple
 from client import Client
 from datasets import DatasetsManager
-from presta.app.tasks import copy, merge_datasets, check_successfull_task
+from presta.app.tasks import copy, merge_datasets, check_successfull_task, remove
 from presta.utils import path_exists, get_conf, format_dataset_filename
 from celery import chain
 
@@ -156,7 +156,7 @@ class DeliveryWorkflow(object):
                                 check_successfull_task.si(task_ids=tsk),
                                 merge_datasets.s(src=src,
                                                  dst=dst),
-                                #remove.s()
+                                remove.s()
                             )
                             merge_task.delay()
 

@@ -237,6 +237,18 @@ def copy(src, dest):
             logger.error('Source not copied. Error: {}'.format(e))
     return result
 
+@app.task(name='presta.app.tasks.remove')
+def remove(files=list()):
+    result = False
+    try:
+        for f in files:
+            if os.path.exists(f):
+                os.remove()
+        result = True
+    except OSError as e:
+        logger.error('Source not copied. Error: {}'.format(e))
+    return result
+
 
 @app.task(name='presta.app.tasks.copy_qc_dirs', ignore_result=True)
 def copy_qc_dirs(src, dest, copy_qc=True):
