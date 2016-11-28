@@ -239,7 +239,7 @@ def copy(src, dest):
 
 
 @app.task(name='presta.app.tasks.remove')
-def remove(files=list()):
+def remove(files=list(),  **kwargs):
     result = False
     try:
         for f in files:
