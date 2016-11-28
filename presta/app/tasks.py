@@ -237,6 +237,7 @@ def copy(src, dest):
             logger.error('Source not copied. Error: {}'.format(e))
     return result
 
+
 @app.task(name='presta.app.tasks.remove')
 def remove(files=list()):
     result = False
@@ -296,9 +297,9 @@ def merge_datasets(trigger=None, **kwargs):
     if isinstance(src, list) and len(src) > 0:
 
         try:
-            with open(dst, 'wb') as f:
-                input_lines = fileinput.input(src, mode='rb')
-                f.writelines(input_lines)
+            with open(dst, 'wb') as outfile:
+                for infile in src:
+                    shutil.copyfileobj(open(infile), outfile)
             if os.path.exists(dst):
                 return src
         except OSError as e:
