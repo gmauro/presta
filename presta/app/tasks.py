@@ -302,11 +302,11 @@ def merge_datasets(trigger=None, **kwargs):
 
         logger.info(cmd_line)
         result = runJob(cmd_line, logger)
-
-        if result and os.path.exists(dst):
+        logger.info(result)
+        if os.path.exists(dst):
             return src
 
-    return False
+    return list()
 
 
 @app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)
