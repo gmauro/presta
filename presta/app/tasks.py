@@ -297,7 +297,7 @@ def merge_datasets(trigger=None, **kwargs):
 
         cmd_line = ["cat",
                     " ".join(src),
-                    ">>" if os.path(dst) and append_to_existing else ">",
+                    ">>" if os.path.exists(dst) and append_to_existing else ">",
                     dst]
 
         logger.info(cmd_line)
