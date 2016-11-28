@@ -91,7 +91,6 @@ class DeliveryWorkflow(object):
 
             if bid not in to_be_merged:
                 to_be_merged[bid] = dict()
-                to_be_merged[bid]['sample_label'] = sample_label
 
             if bid in datasets_info:
                 for f in datasets_info[bid]:
@@ -138,7 +137,7 @@ class DeliveryWorkflow(object):
                 del to_be_merged[bid]
 
         if self.merge:
-            
+
             for bid, file_ext in to_be_merged.iteritems():
                 sample_label = self.batch_info[bid].get('client_sample_id')
                 for ext, reads in file_ext.iteritems():
