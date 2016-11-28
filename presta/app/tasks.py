@@ -244,7 +244,7 @@ def remove(files=list(),  **kwargs):
     try:
         for f in files:
             if os.path.exists(f):
-                os.remove()
+                os.remove(f)
         result = True
     except OSError as e:
         logger.error('Source not copied. Error: {}'.format(e))
