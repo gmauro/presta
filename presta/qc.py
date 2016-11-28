@@ -3,7 +3,7 @@ import sys
 
 from alta.utils import ensure_dir
 from celery import chain
-from presta.app.tasks import copy_qc_dirs, rd_collect_fastq, qc_runner
+from presta.app.tasks import copy_qc_dirs, rd_collect_fastq, qc_runner, check_successfull_task
 from presta.utils import path_exists, get_conf
 
 
@@ -52,8 +52,6 @@ class QcWorkflow(object):
         self.rerun = args.rerun
 
     def run(self):
-
-        copy_task = copy_qc_dirs.si(self.input_path, self.output_path)
         msgs = ["Generating Fastqc reports",
                 "Coping qc dirs from {} to {}".format(self.input_path,
                                                       self.output_path)]
@@ -62,7 +60,7 @@ class QcWorkflow(object):
                 and not self.rerun:
 
             self.logger.info(msgs[1])
-            copy_task.delay()
+            copy_qc_dirs.si(src=self.input_path, dest=self.output_path).delay()
 
         else:
             self.logger.info("{} and {}".format(msgs[0], msgs[1]))
@@ -71,7 +69,8 @@ class QcWorkflow(object):
                             qc_runner.s(outdir=self.fqc_path,
                                         batch_queuing=self.batch_queuing,
                                         queue_spec=self.queues_conf.get('q_fastqc')),
-                            copy_task
+                            check_successfull_task.s(),
+                            copy_qc_dirs.s(src=self.input_path, dest=self.output_path)
                             )
             qc_task.delay()
 

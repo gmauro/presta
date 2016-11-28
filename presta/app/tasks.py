@@ -252,27 +252,32 @@ def remove(files=list()):
 
 
 @app.task(name='presta.app.tasks.copy_qc_dirs', ignore_result=True)
-def copy_qc_dirs(src, dest, copy_qc=True):
-    if copy_qc:
-        dirs = ['Stats', 'Reports', 'fastqc']
-        ensure_dir(dest)
-        task0 = copy.si(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
-        task1 = copy.si(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
-        task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
+def copy_qc_dirs(trigger=None,  **kwargs):
 
-        job = group([task0, task1, task2])
+    if trigger is False:
+        return trigger
 
-        result = job.apply_async()
-        return result.join()
+    src = kwargs.get('src')
+    dest = kwargs.get('dest')
 
-    return None
+    dirs = ['Stats', 'Reports', 'fastqc']
+    ensure_dir(dest)
+    task0 = copy.si(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
+    task1 = copy.si(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
+    task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
+
+    job = group([task0, task1, task2])
+
+    result = job.apply_async()
+
+    return result
+    #return result.join()
+
 
 
 @app.task(name='presta.app.check_successfull_task')
-def check_successfull_task(**kwargs):
-    task_ids = kwargs.get('task_ids', list())
+def check_successfull_task(task_ids=list()):
     status = dict()
-
     while len(status) < len(task_ids):
         for id in task_ids:
             result = AsyncResult(id)
@@ -514,18 +519,22 @@ def bcl2fastq(**kwargs):
     return True if output else False
 
 
-@app.task(name='presta.app.tasks.qc_runner', ignore_result=True)
+@app.task(name='presta.app.tasks.qc_runner')
 def qc_runner(file_list, **kwargs):
     def chunk(lis, n):
         return [lis[i:i + n] for i in range(0, len(lis), n)]
 
     chunk_size = kwargs.get('chunk_size', 6)
+    task_ids = list()
     for f in chunk(file_list, chunk_size):
-        fastqc.s(f, outdir=kwargs.get('outdir'),
-                 threads=chunk_size,
-                 batch_queuing=kwargs.get('batch_queuing'),
-                 queue_spec=kwargs.get('queue_spec')
-                 ).delay()
+        task = fastqc.s(f, outdir=kwargs.get('outdir'),
+                        threads=chunk_size,
+                        batch_queuing=kwargs.get('batch_queuing'),
+                        queue_spec=kwargs.get('queue_spec')
+                        ).delay()
+
+        task_ids.append(task.task_id)
+    return task_ids
 
 
 @app.task(name='presta.app.tasks.fastqc')
