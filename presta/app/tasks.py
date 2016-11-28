@@ -295,16 +295,15 @@ def merge_datasets(trigger=None, **kwargs):
 
     if isinstance(src, list) and len(src) > 0:
 
-        cmd_line = ["cat",
-                    str(" ".join(src)),
-                    ">>" if os.path.exists(dst) and append_to_existing else ">",
-                   str(dst)]
-
-        logger.info(cmd_line)
-        result = runJob(cmd_line, logger)
-
-        if os.path.exists(dst):
-            return src
+        try:
+            with open(dst, 'wb') as f:
+                input_lines = fileinput.input(src, mode='rb')
+                f.writelines(input_lines)
+            if os.path.exists(dst):
+                return src
+        except OSError as e:
+            logger.error('Sources not merged. Error: {}'.format(e))
+            return list()
 
     return list()
 
