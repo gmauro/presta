@@ -185,7 +185,7 @@ def path_exists(path, logger, force=True):
 
 
 def sanitize_filename(filename):
-    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+    valid_chars = "-_.%s%s" % (string.ascii_letters, string.digits)
     return ''.join(c for c in filename if c in valid_chars)
 
 
@@ -194,8 +194,8 @@ def format_dataset_filename(sample_label, lane=None, read=None, ext=None):
 
     if read:
         filename = '_'.join(
-            [filename.replace(' ', '_'), lane, read]) if lane else '_'.join(
-            [filename.replace(' ', '_'), read])
+            [filename, lane, read]) if lane else '_'.join(
+            [filename, read])
 
     if ext:
         filename = '.'.join([filename, ext])
