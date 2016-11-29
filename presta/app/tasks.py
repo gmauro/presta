@@ -4,7 +4,6 @@ from . import app
 from alta.objectstore import build_object_store
 from alta.utils import ensure_dir
 from celery import group
-from celery.result import AsyncResult
 import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
@@ -16,7 +15,6 @@ import errno
 import os
 import shlex
 import shutil
-import fileinput
 
 from celery.utils.log import get_task_logger
 
@@ -274,30 +272,12 @@ def copy_qc_dirs(trigger=None,  **kwargs):
     #return result.join()
 
 
-
-@app.task(name='presta.app.check_successfull_task')
-def check_successfull_task(task_ids=list()):
-    status = dict()
-    while len(status) < len(task_ids):
-        for id in task_ids:
-            result = AsyncResult(id)
-            if result.status in ['SUCCESS','FAILURE'] and id not in status:
-                status[id] = result.status
-
-    if 'FAILURE' in status.values():
-        return False
-
-    return True
-
-
-@app.task(name='presta.app.tasks.merge_datatsets')
-def merge_datasets(trigger=None, **kwargs):
-
-    if trigger is False:
-        return trigger
+@app.task(name='presta.app.tasks.merge')
+def merge(**kwargs):
 
     src = kwargs.get('src', list())
     dst = kwargs.get('dst', None)
+    remove_src = kwargs.get('remove_src', False)
 
     if isinstance(src, list) and len(src) > 0:
 
@@ -305,13 +285,21 @@ def merge_datasets(trigger=None, **kwargs):
             with open(dst, 'wb') as outfile:
                 for infile in src:
                     shutil.copyfileobj(open(infile), outfile)
-            if os.path.exists(dst):
-                return src
+
+            if not os.path.exists(dst):
+                return False
+
+            if remove_src:
+                task = remove.si(src)
+                task.delay()
+
+            return True
+
         except OSError as e:
             logger.error('Sources not merged. Error: {}'.format(e))
             return list()
 
-    return list()
+    return True
 
 
 @app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)
@@ -527,7 +515,7 @@ def qc_runner(file_list, **kwargs):
     chunk_size = kwargs.get('chunk_size', 6)
     task_ids = list()
     for f in chunk(file_list, chunk_size):
-        task = fastqc.s(f, outdir=kwargs.get('outdir'),
+        fastqc.s(f, outdir=kwargs.get('outdir'),
                         threads=chunk_size,
                         batch_queuing=kwargs.get('batch_queuing'),
                         queue_spec=kwargs.get('queue_spec')

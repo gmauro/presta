@@ -20,7 +20,9 @@ from alta.utils import ensure_dir
 from collections import namedtuple
 from client import Client
 from datasets import DatasetsManager
-from presta.app.tasks import copy, merge_datasets, check_successfull_task, remove
+from presta.app.tasks import copy
+from presta.app.router import trigger_event
+
 from presta.utils import path_exists, get_conf, format_dataset_filename
 from celery import chain
 
@@ -127,7 +129,7 @@ class DeliveryWorkflow(object):
                             to_be_merged[bid][ext][read]['dst'].append(dst)
 
                             if not self.dry_run and tsk:
-                                to_be_merged[bid][ext][read]['tsk'].append(tsk.task_id)
+                                to_be_merged[bid][ext][read]['tsk'].append(tsk)
 
             else:
                 msg = 'I have not found any file related to this ' \
@@ -152,12 +154,11 @@ class DeliveryWorkflow(object):
 
                         self.logger.info("Merging {} into {}".format(" ".join(src), dst))
                         if not self.dry_run:
-                            merge_task = chain(
-                                check_successfull_task.si(task_ids=tsk),
-                                merge_datasets.s(src=src,
-                                                 dst=dst),
-                                remove.s()
-                            )
+                            merge_task = trigger_event.si(event='merge_datasets',
+                                                          params=dict(src=src,
+                                                                      dst=dst,
+                                                                      remove_src=True),
+                                                          tasks=tsk)
                             merge_task.delay()
 
     def __execute_playbook(self, playbook, inventory_file,
