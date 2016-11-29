@@ -20,12 +20,14 @@ from alta.utils import ensure_dir
 from collections import namedtuple
 from client import Client
 from datasets import DatasetsManager
-from presta.app.tasks import copy, merge_datasets
-from presta.utils import path_exists, get_conf
+from presta.app.tasks import copy, merge_datasets, check_successfull_task, remove
+from presta.utils import path_exists, get_conf, format_dataset_filename
+from celery import chain
 
 
 DESTINATIONS = ['collection', 'path', 'library', 'ftp']
 SAMPLE_TYPES_TOSKIP = ['FLOWCELL', 'POOL']
+
 
 class DeliveryWorkflow(object):
     def __init__(self, args=None, logger=None):
@@ -79,60 +81,84 @@ class DeliveryWorkflow(object):
 
         dm = DatasetsManager(self.logger, bids)
         datasets_info, count = dm.collect_fastq_from_fs(ipath)
+
         self.logger.info("found {} files".format(count))
 
-        merge = dict() if self.merge else None
+        to_be_merged = dict()
 
         for bid in bids:
-            if merge and bid not in merge:
-                merge[bid] = dict()
+            sample_label = self.batch_info[bid].get('client_sample_id')
+
+            if bid not in to_be_merged:
+                to_be_merged[bid] = dict()
+
             if bid in datasets_info:
                 for f in datasets_info[bid]:
                     src = f.get('filepath')
                     read = f.get('read_label')
                     lane = f.get('lane')
                     ext = f.get('file_ext')
-                    sample_label = self.batch_info[bid].get('client_sample_id')
-                    sample_label = '_'.join(
-                        [sample_label.replace(' ', '_'), lane, read]) if lane and not self.merge else '_'.join(
-                        [sample_label.replace(' ', '_'), read])
-                    sample_label = '.'.join([sample_label.replace('/', '_'), ext])
-                    dst = os.path.join(opath, self.batch_id, sample_label)
 
-                    if merge and bid in merge:
-                        merge[bid][ext] = dict() if ext not in merge[bid] else merge[bid][ext]
-                        if read not in merge[bid][ext]:
-                            merge[bid][ext][read] = dict(src=list(), dst=dst)
-                        else:
-                            merge[bid][ext][read]['src'].append(src)
+                    filename = format_dataset_filename(sample_label=sample_label,
+                                                       lane=lane,
+                                                       read=read,
+                                                       ext=ext)
 
-                    elif not merge:
-                        self.logger.info("Coping {} into {}".format(src, dst))
-                        if os.path.isfile(dst):
-                            self.logger.info('{} skipped'.format(os.path.basename(
-                                dst)))
-                        else:
-                            if not self.dry_run:
-                                copy.si(src, dst).delay()
-                                self.logger.info(
-                                    '{} copied'.format(os.path.basename(dst)))
+                    dst = os.path.join(opath, self.batch_id, filename)
 
+                    self.logger.info("Coping {} into {}".format(src, dst))
 
+                    if os.path.isfile(dst):
+                        self.logger.info('{} skipped'.format(os.path.basename(
+                            dst)))
+                    else:
+                        if not self.dry_run:
+                            tsk = copy.si(src, dst).delay()
+                            self.logger.info(
+                                '{} copied'.format(os.path.basename(dst)))
+
+                        if self.merge:
+                            to_be_merged[bid][ext] = dict() if ext not in to_be_merged[bid] else to_be_merged[bid][ext]
+
+                            if read not in to_be_merged[bid][ext]:
+                                to_be_merged[bid][ext][read] = dict(src=list(), dst=list(), tsk=list())
+
+                            to_be_merged[bid][ext][read]['src'].append(src)
+                            to_be_merged[bid][ext][read]['dst'].append(dst)
+
+                            if not self.dry_run and tsk:
+                                to_be_merged[bid][ext][read]['tsk'].append(tsk.task_id)
 
             else:
                 msg = 'I have not found any file related to this ' \
                       'Bika id: {}'.format(bid)
                 self.logger.warning(msg)
                 self.logger.info('{} skipped'.format(bid))
-                del merge[bid]
+                del to_be_merged[bid]
 
         if self.merge:
-            for bid, file_ext in merge.iteritems():
+
+            for bid, file_ext in to_be_merged.iteritems():
+                sample_label = self.batch_info[bid].get('client_sample_id')
                 for ext, reads in file_ext.iteritems():
-                    for read, files in reads.iteritems():
-                        self.logger.info("Merging datasets {} - {} for {}".format(ext, read, bid))
-                        self.logger.info("Merging {} into {}".format(" ".join(files['src']), files['dst']))
-                        merge_datasets.si(files['src'], files['dst'], ext).delay()
+                    for read, datasets in reads.iteritems():
+
+                        filename = format_dataset_filename(sample_label=sample_label,
+                                                           read=read,
+                                                           ext=ext)
+                        src = datasets['dst']
+                        dst = os.path.join(opath, self.batch_id, filename)
+                        tsk = datasets['tsk']
+
+                        self.logger.info("Merging {} into {}".format(" ".join(src), dst))
+                        if not self.dry_run:
+                            merge_task = chain(
+                                check_successfull_task.si(task_ids=tsk),
+                                merge_datasets.s(src=src,
+                                                 dst=dst),
+                                remove.s()
+                            )
+                            merge_task.delay()
 
     def __execute_playbook(self, playbook, inventory_file,
                            random_user, random_clear_text_password):

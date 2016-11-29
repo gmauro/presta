@@ -4,6 +4,7 @@ from . import app
 from alta.objectstore import build_object_store
 from alta.utils import ensure_dir
 from celery import group
+from celery.result import AsyncResult
 import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
@@ -140,6 +141,7 @@ def rd_ready_to_be_preprocessed(**kwargs):
     result = pipeline.apply_async()
     return result.join()
 
+
 @app.task(name='presta.app.tasks.samplesheet_ready')
 def samplesheet_ready(ir_conf, ipath):
 
@@ -223,6 +225,9 @@ def check_ownership(**kwargs):
 def copy(src, dest):
     result = False
     try:
+        if os.path.exists(dest):
+            shutil.rmtree(dest)
+
         shutil.copytree(src, dest)
         result = True
     except OSError as e:
@@ -230,6 +235,19 @@ def copy(src, dest):
             shutil.copy(src, dest)
         else:
             logger.error('Source not copied. Error: {}'.format(e))
+    return result
+
+
+@app.task(name='presta.app.tasks.remove')
+def remove(files=list()):
+    result = False
+    try:
+        for f in files:
+            if os.path.exists(f):
+                os.remove(f)
+        result = True
+    except OSError as e:
+        logger.error('Source not copied. Error: {}'.format(e))
     return result
 
 
@@ -249,17 +267,46 @@ def copy_qc_dirs(src, dest, copy_qc=True):
 
     return None
 
+
+@app.task(name='presta.app.check_successfull_task')
+def check_successfull_task(**kwargs):
+    task_ids = kwargs.get('task_ids', list())
+    status = dict()
+
+    while len(status) < len(task_ids):
+        for id in task_ids:
+            result = AsyncResult(id)
+            if result.status in ['SUCCESS','FAILURE'] and id not in status:
+                status[id] = result.status
+
+    if 'FAILURE' in status.values():
+        return False
+
+    return True
+
+
 @app.task(name='presta.app.tasks.merge_datatsets')
-def merge_datasets(src, dest, ext):
-    result = False
-    try:
-        with open(dest, 'wb') as f:
-            input_lines = fileinput.input(src, mode='rb')
-            f.writelines(input_lines)
-        result = True
-    except OSError as e:
-        logger.error('Sources not merged. Error: {}'.format(e))
-    return result
+def merge_datasets(trigger=None, **kwargs):
+
+    if trigger is False:
+        return trigger
+
+    src = kwargs.get('src', list())
+    dst = kwargs.get('dst', None)
+
+    if isinstance(src, list) and len(src) > 0:
+
+        try:
+            with open(dst, 'wb') as outfile:
+                for infile in src:
+                    shutil.copyfileobj(open(infile), outfile)
+            if os.path.exists(dst):
+                return src
+        except OSError as e:
+            logger.error('Sources not merged. Error: {}'.format(e))
+            return list()
+
+    return list()
 
 
 @app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)

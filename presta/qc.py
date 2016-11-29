@@ -21,7 +21,6 @@ class QcWorkflow(object):
         input_path = args.ds_path
         output_path = args.export_path
 
-
         if r_dir_label or (input_path and output_path):
             pass
         else:
@@ -64,16 +63,17 @@ class QcWorkflow(object):
 
             self.logger.info(msgs[1])
             copy_task.delay()
+
         else:
             self.logger.info("{} and {}".format(msgs[0], msgs[1]))
-            ensure_dir(self.fqc_path)
+            ensure_dir(self.fqc_path, force=True)
             qc_task = chain(rd_collect_fastq.si(ds_path=self.input_path),
                             qc_runner.s(outdir=self.fqc_path,
                                         batch_queuing=self.batch_queuing,
                                         queue_spec=self.queues_conf.get('q_fastqc')),
                             copy_task
-                            ).delay()
-
+                            )
+            qc_task.delay()
 
 help_doc = """
 Generate (if needed) and export quality control reports
