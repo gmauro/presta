@@ -4,6 +4,7 @@ import sys
 from alta.utils import ensure_dir
 from celery import chain
 from presta.app.tasks import copy_qc_dirs, rd_collect_fastq, qc_runner
+from presta.app.router import trigger_event, dispatch_event
 from presta.utils import path_exists, get_conf
 
 
@@ -60,7 +61,11 @@ class QcWorkflow(object):
                 and not self.rerun:
 
             self.logger.info(msgs[1])
-            copy_qc_dirs.si(src=self.input_path, dest=self.output_path).delay()
+            copy_task = dispatch_event.si(event='copy_qc_folders',
+                                          params=dict(src=self.input_path,
+                                                      dest=self.output_path),
+                                          tasks=qc_task)
+            copy_task.delay()
 
         else:
             self.logger.info("{} and {}".format(msgs[0], msgs[1]))
@@ -69,10 +74,15 @@ class QcWorkflow(object):
                             qc_runner.s(outdir=self.fqc_path,
                                         batch_queuing=self.batch_queuing,
                                         queue_spec=self.queues_conf.get('q_fastqc')),
-                            #check_successfull_task.s(),
-                            copy_qc_dirs.s(src=self.input_path, dest=self.output_path)
                             )
+
             qc_task.delay()
+
+            copy_task = trigger_event.si(event='copy_qc_folders',
+                                         params=dict(src=self.input_path,
+                                                     dest=self.output_path),
+                                         tasks=qc_task)
+            copy_task.delay()
 
 help_doc = """
 Generate (if needed) and export quality control reports

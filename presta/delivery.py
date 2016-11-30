@@ -129,7 +129,7 @@ class DeliveryWorkflow(object):
                             to_be_merged[bid][ext][read]['dst'].append(dst)
 
                             if not self.dry_run and tsk:
-                                to_be_merged[bid][ext][read]['tsk'].append(tsk)
+                                to_be_merged[bid][ext][read]['tsk'].append(tsk.task_id)
 
             else:
                 msg = 'I have not found any file related to this ' \

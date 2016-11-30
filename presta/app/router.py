@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from . import app
-from presta.app.tasks import run_presta_check, run_presta_proc, run_presta_qc, run_presta_sync, merge
+from presta.app.tasks import run_presta_check, run_presta_proc, run_presta_qc, run_presta_sync, merge, copy_qc_dirs
 from presta.app.lims import search_batches_to_sync, search_worksheets_to_sync, search_samples_to_sync
 
 from celery.result import AsyncResult
@@ -23,6 +23,16 @@ def check_rd(params):
     )
 
     run_presta_check.si(**params).delay()
+
+
+@task
+def check_rd_to_stage(params):
+    logger.info('Received event "{}". Run task "{}"'.format(
+        check_rd_to_stage.__name__,
+        search_rd_to_stage.__name__)
+    )
+
+    search_rd_to_stage.si(**params).delay()
 
 
 @task
@@ -76,6 +86,16 @@ def check_samples(params):
 
     search_samples_to_sync.si(**params).delay()
 
+
+@task
+def copy_qc_folders(params):
+    logger.info('Received event "{}". Run task "{}"'.format(
+        copy_qc_folders.__name__,
+        copy_qc_dirs.__name__)
+    )
+
+    copy_qc_dirs.si(**params).delay()
+
 @task
 def merge_datasets(params):
     logger.info('Received event "{}". Run task "{}"'.format(
@@ -113,7 +133,7 @@ def dispatch_event(event, params):
 def wait_for_jobs_to_complete(tasks=list()):
 
     status = dict()
-    task_ids = [t.id for t in tasks]
+    task_ids = [t for t in tasks]
 
     while len(status) < len(task_ids):
         for id in task_ids:

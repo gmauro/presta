@@ -42,3 +42,12 @@ def check_samples_ready_to_be_published():
                       params=dict(emit_events=True),
                       ).delay()
     return True
+
+
+@app.task(name='presta.app.cron.check_rd_to_stage')
+def check_rd_to_stage():
+    logger.info('Cron Task: searching for rundir ready to be staged...')
+    dispatch_event.si(event='check_rd_to_stage',
+                      params=dict(emit_events=True),
+                      ).delay()
+    return True

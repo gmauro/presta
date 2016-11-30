@@ -9,6 +9,7 @@ from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
 from presta.utils import IEMRunInfoReader
 from presta.utils import runJob
+from presta.utils import get_conf
 
 from pwd import getpwuid
 import errno
@@ -513,7 +514,6 @@ def qc_runner(file_list, **kwargs):
         return [lis[i:i + n] for i in range(0, len(lis), n)]
 
     chunk_size = kwargs.get('chunk_size', 6)
-    task_ids = list()
     for f in chunk(file_list, chunk_size):
         fastqc.s(f, outdir=kwargs.get('outdir'),
                         threads=chunk_size,
@@ -521,8 +521,7 @@ def qc_runner(file_list, **kwargs):
                         queue_spec=kwargs.get('queue_spec')
                         ).delay()
 
-        task_ids.append(task.task_id)
-    return task_ids
+    return True
 
 
 @app.task(name='presta.app.tasks.fastqc')
@@ -593,6 +592,12 @@ def rd_collect_samples(**kwargs):
         ) for r in samplesheet.data]
 
     return samples
+
+
+def search_rd_to_stage(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    conf = get_conf(logger, None)
+    pass
 
 
 def __set_imetadata(ir_conf, ipath, imetadata):
