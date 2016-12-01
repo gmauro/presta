@@ -199,7 +199,7 @@ def format_dataset_filename(sample_label, lane=None, read=None, ext=None, uid=Fa
             [filename, read])
 
     if uid:
-        filename = '.'.join([filename, uuid.uuid4()])
+        filename = '.'.join([filename, str(uuid.uuid4())])
 
     if ext:
         filename = '.'.join([filename, ext])
