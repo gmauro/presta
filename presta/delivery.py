@@ -104,7 +104,8 @@ class DeliveryWorkflow(object):
                     filename = format_dataset_filename(sample_label=sample_label,
                                                        lane=lane,
                                                        read=read,
-                                                       ext=ext)
+                                                       ext=ext,
+                                                       uid=True)
 
                     dst = os.path.join(opath, self.batch_id, filename)
 
@@ -134,6 +135,7 @@ class DeliveryWorkflow(object):
             else:
                 msg = 'I have not found any file related to this ' \
                       'Bika id: {}'.format(bid)
+
                 self.logger.warning(msg)
                 self.logger.info('{} skipped'.format(bid))
                 del to_be_merged[bid]

@@ -8,6 +8,7 @@ import re
 import string
 import sys
 import subprocess
+import uuid
 
 import xml.etree.ElementTree as ET
 from alta import ConfigurationFromYamlFile
@@ -189,7 +190,7 @@ def sanitize_filename(filename):
     return ''.join(c for c in filename if c in valid_chars)
 
 
-def format_dataset_filename(sample_label, lane=None, read=None, ext=None):
+def format_dataset_filename(sample_label, lane=None, read=None, ext=None, uid=False):
     filename = sanitize_filename(sample_label)
 
     if read:
@@ -197,8 +198,13 @@ def format_dataset_filename(sample_label, lane=None, read=None, ext=None):
             [filename, lane, read]) if lane else '_'.join(
             [filename, read])
 
+    if uid:
+        filename = '.'.join([filename, uuid.uuid4()])
+
     if ext:
         filename = '.'.join([filename, ext])
+
+
 
     return sanitize_filename(filename)
 
