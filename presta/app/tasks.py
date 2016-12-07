@@ -650,7 +650,7 @@ def search_rd_to_archive(**kwargs):
         if check_rd_to_archive(rd_path=rd_path,
                                io_conf=io_conf):
 
-            logger.info('{} processed. Ready to archived'.format(rd_label))
+            logger.info('{} processed. Ready to be archived'.format(rd_label))
             if emit_events:
                 archive_task = archive_rd.si(rd_path=rd_path,
                                              archive_path=os.path.join(archive_root_path,
@@ -661,10 +661,48 @@ def search_rd_to_archive(**kwargs):
 
 @app.task(name='presta.app.tasks.search_rd_to_stage')
 def search_rd_to_stage(**kwargs):
-    pass
+    emit_events = kwargs.get('emit_events', False)
+    conf = get_conf(logger, None)
+    io_conf = conf.get_io_section()
+
+    archive_root_path = kwargs.get('archive_root_path') if kwargs.get('archive_root_path') \
+        else io_conf.get('archive_root_path')
+
+    stage_root_path = kwargs.get('stage_root_path') if kwargs.get('stage_root_path') \
+        else io_conf.get('stage_root_path')
+
+    logger.info('Checking rundirs in: {}'.format(archive_root_path))
+    localroot, dirnames, filenames = os.walk(archive_root_path).next()
+
+    for rd_label in dirnames:
+        rd_path = os.path.join(localroot,
+                               rd_label)
+
+        if check_rd_to_stage(rd_path=rd_path,
+                             io_conf=io_conf):
+
+            logger.info('{} processed. Ready to be staged'.format(rd_label))
+            if emit_events:
+                stage_task = stage_rd.si(rd_path=rd_path,
+                                         stage_path=os.path.join(stage_root_path,
+                                                                 rd_label))
+                stage_task.delay()
 
 
-@app.task(name='presta.app.tasks.archive_rd')
+@app.task(name='presta.app.tasks.stage_rd')
+def stage_rd(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    stage_path = kwargs.get('stage_path')
+
+    src = rd_path
+    dest = stage_path
+
+    logger.info('Staging {} in {}'.format(src, dest))
+    mv_task = move.si(src=src, dest=dest)
+    mv_task.apply_async()
+
+
+@app.task(name='presta.app.tasks.stage_rd')
 def archive_rd(**kwargs):
     rd_path = kwargs.get('rd_path')
     archive_path = kwargs.get('archive_path')
@@ -686,6 +724,15 @@ def check_rd_to_archive(**kwargs):
 
     return rd_progress_status in PROGRESS_STATUS.get('COMPLETED')
 
+
+@app.task(name='presta.app.tasks.check_rd_to_stage')
+def check_rd_to_stage(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    io_conf = kwargs.get('io_conf')
+
+    rd_progress_status = check_rd_progress_status(rd_path=rd_path, io_conf=io_conf)
+
+    return rd_progress_status in PROGRESS_STATUS.get('COMPLETED')
 
 @app.task(name='presta.app.tasks.check_rd_progress_status')
 def check_rd_progress_status(**kwargs):
