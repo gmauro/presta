@@ -9,19 +9,16 @@ class RundirsRootpath(object):
     def __init__(self, args=None, logger=None):
         self.logger = logger
 
-        conf = get_conf(logger, args.config_file)
+        self.conf = get_conf(logger, args.config_file)
+        self.io_conf = self.conf.get_io_section()
+        self.do_conf = self.conf.get_section('data_ownership')
+        self.ir_conf = self.conf.get_irods_section()
 
-        if args.root_path:
-            self.root_path = args.root_path
-        else:
-            io_conf = conf.get_io_section()
-            self.root_path = io_conf.get('rundirs_root_path')
+        self.root_path = args.root_path if args.root_path else self.io_conf.get('rundirs_root_path')
 
-        do_conf = conf.get_section('data_ownership')
-        self.user = do_conf.get('user')
-        self.group = do_conf.get('group')
+        self.user = self.do_conf.get('user')
+        self.group = self.do_conf.get('group')
 
-        self.ir_conf = conf.get_irods_section()
         self.emit_events = args.emit_events
 
     def check(self):
@@ -38,10 +35,10 @@ class RundirsRootpath(object):
         localroot, dirnames, filenames = os.walk(self.root_path).next()
 
         positive_labels = ['finished', "ownership ok" ,
-                           'SampleSheet found', 'Barcodes have the same size', 'Metadata found']
+                           'SampleSheet found', 'Barcodes have the same size', 'Metadata found', 'To be processed']
         negative_labels = ['running ', "waiting for ownership's modification",
                            'SampleSheet not found',
-                           "Barcodes don't have the same size", 'Metadata not found']
+                           "Barcodes don't have the same size", 'Metadata not found', 'Processed']
 
         dir_dict = dict()
         for d in dirnames:
@@ -51,9 +48,11 @@ class RundirsRootpath(object):
                                                  group=self.group,
                                                  path=d_path,
                                                  rd_label=d,
-                                                 ir_conf=self.ir_conf)
+                                                 ir_conf=self.ir_conf,
+                                                 io_conf=self.io_conf)
 
-            ready_to_be_preprocessed = checks[0] and checks[1] and checks[2][0]
+            self.logger.info(checks)
+            ready_to_be_preprocessed = checks[0] and checks[1] and checks[2][0] and checks[4]
 
             if self.emit_events and ready_to_be_preprocessed:
                 dispatch_event.si(event='rd_ready',

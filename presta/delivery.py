@@ -20,7 +20,9 @@ from alta.utils import ensure_dir
 from collections import namedtuple
 from client import Client
 from datasets import DatasetsManager
-from presta.app.tasks import copy, merge_datasets, check_successfull_task, remove
+from presta.app.tasks import copy
+from presta.app.router import trigger_event, dispatch_event
+
 from presta.utils import path_exists, get_conf, format_dataset_filename
 from celery import chain
 
@@ -45,7 +47,7 @@ class DeliveryWorkflow(object):
         if batch_info:
             self.batch_info = batch_info
         else:
-            logger.error('I have not found any information of the samples '
+            logger.error('I have retrieved any information of the samples '
                          'owned by the batch {}'.format(batch_id))
             sys.exit()
 
@@ -102,7 +104,8 @@ class DeliveryWorkflow(object):
                     filename = format_dataset_filename(sample_label=sample_label,
                                                        lane=lane,
                                                        read=read,
-                                                       ext=ext)
+                                                       ext=ext,
+                                                       uid=True)
 
                     dst = os.path.join(opath, self.batch_id, filename)
 
@@ -132,6 +135,7 @@ class DeliveryWorkflow(object):
             else:
                 msg = 'I have not found any file related to this ' \
                       'Bika id: {}'.format(bid)
+
                 self.logger.warning(msg)
                 self.logger.info('{} skipped'.format(bid))
                 del to_be_merged[bid]
@@ -152,12 +156,11 @@ class DeliveryWorkflow(object):
 
                         self.logger.info("Merging {} into {}".format(" ".join(src), dst))
                         if not self.dry_run:
-                            merge_task = chain(
-                                check_successfull_task.si(task_ids=tsk),
-                                merge_datasets.s(src=src,
-                                                 dst=dst),
-                                remove.s()
-                            )
+                            merge_task = trigger_event.si(event='merge_datasets',
+                                                          params=dict(src=src,
+                                                                      dst=dst,
+                                                                      remove_src=True),
+                                                          tasks=tsk)
                             merge_task.delay()
 
     def __execute_playbook(self, playbook, inventory_file,
