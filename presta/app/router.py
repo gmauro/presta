@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 
 from . import app
-from presta.app.tasks import run_presta_check, run_presta_proc, run_presta_qc, run_presta_sync, merge, copy_qc_dirs
+from presta.app.tasks import run_presta_check, run_presta_proc, run_presta_qc, run_presta_sync, merge, copy_qc_dirs, \
+    set_progress_status, search_rd_to_archive, search_rd_to_stage
 from presta.app.lims import search_batches_to_sync, search_worksheets_to_sync, search_samples_to_sync
 
 from celery.result import AsyncResult
@@ -34,28 +35,71 @@ def check_rd_to_stage(params):
 
     search_rd_to_stage.si(**params).delay()
 
+@task
+def check_rd_to_archive(params):
+    logger.info('Received event "{}". Run task "{}"'.format(
+        check_rd_to_archive.__name__,
+        search_rd_to_archive.__name__)
+    )
+
+    search_rd_to_archive.si(**params).delay()
 
 @task
 def rd_ready(params):
-    logger.info('Received event "{}". Run task "{}"'.format(
-        rd_ready.__name__,
-        run_presta_proc.__name__)
-    )
+    dispatch = params.get('emit_events')
+    if dispatch:
+        logger.info('Received event "{}". Run task "{}"'.format(
+            rd_ready.__name__,
+            run_presta_proc.__name__)
+        )
 
-    run_presta_proc.si(**params).delay()
+        run_presta_proc.si(**params).delay()
+    else:
+        logger.info('Event "{}". Nothing to dispatch'.format(rd_ready.__name__))
+
+
+@task
+def preprocessing_started(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        preprocessing_started.__name__,
+        set_progress_status.__name__)
+    )
+    set_progress_status.si(**params).delay()
 
 
 @task
 def fastq_ready(params):
-    logger.info('Received event "{}". Run tasks "{}" - "{}"'.format(
-        fastq_ready.__name__,
-        run_presta_qc.__name__,
-        run_presta_sync.__name__)
+    dispatch = params.get('emit_events')
+    if dispatch:
+        logger.info('Received event "{}". Run tasks "{}" - "{}"'.format(
+            fastq_ready.__name__,
+            run_presta_qc.__name__,
+            run_presta_sync.__name__)
+        )
+        run_presta_qc.si(**params).delay()
+        run_presta_sync.si(**params).delay()
+    else:
+        logger.info('Event "{}". Nothing to dispatch'.format(fastq_ready.__name__))
+
+    set_progress_status.si(**params).delay()
+
+
+@task
+def qc_started(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        qc_started.__name__,
+        set_progress_status.__name__)
     )
+    set_progress_status.si(**params).delay()
 
-    run_presta_qc.si(**params).delay()
-    run_presta_sync.si(**params).delay()
 
+@task
+def qc_completed(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        qc_completed.__name__,
+        set_progress_status.__name__)
+    )
+    set_progress_status.si(**params).delay()
 
 @task
 def check_batches(params):

@@ -17,6 +17,7 @@ from pkg_resources import resource_filename
 
 SAMPLES_WITHOUT_BARCODES = [2, 8]
 DEFAULT_INDEX_CYCLES = dict(index='8', index1='8')
+PROGRESS_STATUS = dict(COMPLETED='completed', STARTED='started', TODO='todo')
 
 
 class IEMRunInfoReader:
@@ -58,6 +59,15 @@ class IEMRunInfoReader:
                     read.attrib.update(NumCycles=index_cycles.get('index', DEFAULT_INDEX_CYCLES['index']))
         if write:
             self.tree.write(self.xml_file)
+
+    def is_paired_end_sequencing(self):
+        reads = self.get_reads()
+        reads = filter(lambda item: item["IsIndexedRead"] == "N", reads)
+
+        if len(reads) == 1:
+            return False
+
+        return True
 
 
 class IEMSampleSheetReader(csv.DictReader):
@@ -226,6 +236,31 @@ def paths_setup(logger, cf_from_cli=None):
     logger.debug("config file paths: {}".format(config_file_paths))
 
     return sorted(config_file_paths)[0].path
+
+
+def touch(path):
+    try:
+        with open(path, 'a'):
+            os.utime(path, None)
+    except IOError as e:
+        logger.error("While touching {} file: {}".format(path, e.strerror))
+
+
+def check_progress_status(root_path, started_file, completed_file):
+    localroot, dirnames, filenames = os.walk(root_path).next()
+
+    if started_file not in filenames:
+        return PROGRESS_STATUS.get('TODO')
+    elif completed_file not in filenames:
+        return PROGRESS_STATUS.get('STARTED')
+    else:
+        started_file = os.path.join(root_path, started_file)
+        completed_file = os.path.join(root_path, completed_file)
+
+        if os.path.getmtime(started_file) > os.path.getmtime(completed_file):
+            return PROGRESS_STATUS.get('STARTED')
+
+    return PROGRESS_STATUS.get('COMPLETED')
 
 
 def runJob(cmd, logger):

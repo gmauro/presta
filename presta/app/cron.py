@@ -44,8 +44,17 @@ def check_samples_ready_to_be_published():
     return True
 
 
-@app.task(name='presta.app.cron.check_rd_to_stage')
-def check_rd_to_stage():
+@app.task(name='presta.app.cron.check_rd_ready_to_be_archived')
+def check_rd_ready_to_be_archived():
+    logger.info('Cron Task: searching for rundir ready to be archived...')
+    dispatch_event.si(event='check_rd_to_archive',
+                      params=dict(emit_events=True),
+                      ).delay()
+    return True
+
+
+@app.task(name='presta.app.cron.check_rd_ready_to_be_staged')
+def check_rd_ready_to_be_staged():
     logger.info('Cron Task: searching for rundir ready to be staged...')
     dispatch_event.si(event='check_rd_to_stage',
                       params=dict(emit_events=True),

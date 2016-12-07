@@ -21,7 +21,7 @@ from collections import namedtuple
 from client import Client
 from datasets import DatasetsManager
 from presta.app.tasks import copy
-from presta.app.router import trigger_event
+from presta.app.router import trigger_event, dispatch_event
 
 from presta.utils import path_exists, get_conf, format_dataset_filename
 from celery import chain
