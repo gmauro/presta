@@ -9,13 +9,15 @@ from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
 from presta.utils import IEMRunInfoReader
 from presta.utils import runJob
+from presta.utils import get_conf
+from presta.utils import touch
+from presta.utils import check_progress_status, PROGRESS_STATUS
 
 from pwd import getpwuid
 import errno
 import os
 import shlex
 import shutil
-import fileinput
 
 from celery.utils.log import get_task_logger
 
@@ -40,15 +42,19 @@ def run_presta_check(**kwargs):
 @app.task(name='presta.app.tasks.run_presta_proc')
 def run_presta_proc(**kwargs):
     emit_events = kwargs.get('emit_events', False)
-    output = kwargs.get('output')
+
+    rd_label = kwargs.get('rd_label')
     rd_path = kwargs.get('rd_path')
+    ds_path = kwargs.get('ds_path')
 
     cmd_line = ['presta', 'proc']
-    if rd_path:
-        cmd_line.extend(['--rd_path', rd_path])
+    if rd_label:
+        cmd_line.extend(['--rd_label', rd_label])
 
-        if output:
-            cmd_line.extend(['--output', output])
+        if rd_path:
+            cmd_line.extend(['--rd_path', rd_path])
+        if ds_path:
+            cmd_line.extend(['--ds_path', ds_path])
         if emit_events:
             cmd_line.append('--emit_events')
 
@@ -61,19 +67,22 @@ def run_presta_proc(**kwargs):
 @app.task(name='presta.app.tasks.run_presta_qc')
 def run_presta_qc(**kwargs):
     emit_events = kwargs.get('emit_events', False)
-    rundir_label = kwargs.get('rd_label')
+    rd_label = kwargs.get('rd_label')
     ds_path = kwargs.get('ds_path')
-    export_path = kwargs.get('export_path')
+    qc_path = kwargs.get('qc_path')
+    qc_export_path = kwargs.get('qc_export_path')
     rerun = kwargs.get('force')
 
     cmd_line = ['presta', 'qc']
 
-    if rundir_label:
-        cmd_line.extend(['--rundir_label', rundir_label])
-    if export_path:
-        cmd_line.extend(['--export_path', export_path])
+    if rd_label:
+        cmd_line.extend(['--rd_label', rd_label])
+    if qc_export_path:
+        cmd_line.extend(['--qc_export_path', qc_export_path])
     if ds_path:
         cmd_line.extend(['--ds_path', ds_path])
+    if qc_path:
+        cmd_line.extend(['--qc_path', qc_path])
     if rerun:
         cmd_line.append('--rerun')
     if emit_events:
@@ -126,6 +135,7 @@ def rd_ready_to_be_preprocessed(**kwargs):
     rundir_label = kwargs.get('rd_label')
     samplesheet_filename = kwargs.get('ssht_filename', 'SampleSheet.csv')
     ir_conf = kwargs.get('ir_conf')
+    io_conf = kwargs.get('io_conf')
     ipath = os.path.join(ir_conf['runs_collection'],
                          rundir_label,
                          samplesheet_filename)
@@ -134,11 +144,13 @@ def rd_ready_to_be_preprocessed(**kwargs):
     task1 = check_ownership.si(user=user, group=grp, dir=path)
     task2 = samplesheet_ready.si(ir_conf, ipath)
     task3 = check_metadata.si(ir_conf, os.path.dirname(ipath))
+    task4 = check_preprocessing_status.si(rd_path=path, io_conf=io_conf)
 
-    pipeline = group([task0, task1, task2, task3])
+    pipeline = group([task0, task1, task2, task3, task4])
 
     result = pipeline.apply_async()
     return result.join()
+
 
 @app.task(name='presta.app.tasks.samplesheet_ready')
 def samplesheet_ready(ir_conf, ipath):
@@ -219,10 +231,23 @@ def check_ownership(**kwargs):
     return True if user == find_owner(d) and grp == find_group(d) else False
 
 
+@app.task(name='presta.app.task.check_preprocessing_status')
+def check_preprocessing_status(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    io_conf = kwargs.get('io_conf')
+
+    rd_progress_status = check_rd_progress_status(rd_path=rd_path, io_conf=io_conf)
+
+    return rd_progress_status in PROGRESS_STATUS.get('TODO')
+
+
 @app.task(name='presta.app.tasks.copy')
 def copy(src, dest):
     result = False
     try:
+        if os.path.exists(dest):
+            shutil.rmtree(dest)
+
         shutil.copytree(src, dest)
         result = True
     except OSError as e:
@@ -233,33 +258,76 @@ def copy(src, dest):
     return result
 
 
-@app.task(name='presta.app.tasks.copy_qc_dirs', ignore_result=True)
-def copy_qc_dirs(src, dest, copy_qc=True):
-    if copy_qc:
-        dirs = ['Stats', 'Reports', 'fastqc']
-        ensure_dir(dest)
-        task0 = copy.si(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
-        task1 = copy.si(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
-        task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
-
-        job = group([task0, task1, task2])
-
-        result = job.apply_async()
-        return result.join()
-
-    return None
-
-@app.task(name='presta.app.tasks.merge_datatsets')
-def merge_datasets(src, dest, ext):
+@app.task(name='presta.app.tasks.remove')
+def remove(files=list()):
     result = False
     try:
-        with open(dest, 'wb') as f:
-            input_lines = fileinput.input(src, mode='rb')
-            f.writelines(input_lines)
+        for f in files:
+            if os.path.exists(f):
+                os.remove(f)
         result = True
     except OSError as e:
-        logger.error('Sources not merged. Error: {}'.format(e))
+        logger.error('Source not copied. Error: {}'.format(e))
     return result
+
+
+@app.task(name='presta.app.tasks.copy_qc_dirs', ignore_result=True)
+def copy_qc_dirs(trigger=None,  **kwargs):
+
+    if trigger is False:
+        return trigger
+
+    src = kwargs.get('src')
+    dest = kwargs.get('dest')
+
+    dirs = ['Stats', 'Reports', 'fastqc']
+    ensure_dir(dest)
+    task0 = copy.si(os.path.join(src, dirs[0]), os.path.join(dest, dirs[0]))
+    task1 = copy.si(os.path.join(src, dirs[1]), os.path.join(dest, dirs[1]))
+    task2 = copy.si(os.path.join(src, dirs[2]), os.path.join(dest, dirs[2]))
+
+    job = group([task0, task1, task2])
+
+    result = job.apply_async()
+
+    return result
+    #return result.join()
+
+
+@app.task(name='presta.app.tasks.merge')
+def merge(**kwargs):
+
+    src = kwargs.get('src', list())
+    dst = kwargs.get('dst', None)
+    remove_src = kwargs.get('remove_src', False)
+
+    if isinstance(src, list) and len(src) > 0:
+
+        try:
+            with open(dst, 'wb') as outfile:
+                for infile in src:
+                    shutil.copyfileobj(open(infile), outfile)
+
+            if not os.path.exists(dst):
+                return False
+
+            if remove_src:
+                task = remove.si(src)
+                task.delay()
+
+            return True
+
+        except OSError as e:
+            logger.error('Sources not merged. Error: {}'.format(e))
+            return list()
+
+    return True
+
+
+@app.task(name='presta.app.tasks.set_progress_status')
+def set_progress_status(**kwargs):
+    progress_status_file = kwargs.get('progress_status_file')
+    return touch(progress_status_file)
 
 
 @app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)
@@ -278,12 +346,12 @@ def sanitize_metadata(**kwargs):
                                          samplesheet_filename)
 
         samplesheet_has_metadata, imetadata = check_metadata(ir_conf=ir_conf,
-                                                            ipath=samplesheet_ipath,
-                                                            get_metadata=True)
+                                                             ipath=samplesheet_ipath,
+                                                             get_metadata=True)
         if samplesheet_has_metadata:
-            __set_imetadata(ir_conf=ir_conf,
-                            ipath=rundir_ipath,
-                            imetadata=imetadata)
+            _set_imetadata(ir_conf=ir_conf,
+                           ipath=rundir_ipath,
+                           imetadata=imetadata)
 
 
 @app.task(name='presta.app.tasks.copy_samplesheet_from_irods',
@@ -328,9 +396,9 @@ def copy_run_info_to_irods(**kwargs):
                               rundir_label,
                               run_info_filename)
 
-    __copy_file_into_irods(conf=ir_conf,
-                           file_path=run_info_file_path,
-                           irods_path=irods_path)
+    _copy_file_into_irods(conf=ir_conf,
+                          file_path=run_info_file_path,
+                          irods_path=irods_path)
 
     return run_info_file_path
 
@@ -347,9 +415,9 @@ def copy_run_parameters_to_irods(**kwargs):
                               rundir_label,
                               run_parameters_filename)
 
-    __copy_file_into_irods(conf=ir_conf,
-                           file_path=run_parameters_file_path,
-                           irods_path=irods_path)
+    _copy_file_into_irods(conf=ir_conf,
+                          file_path=run_parameters_file_path,
+                          irods_path=irods_path)
 
     return run_parameters_file_path
 
@@ -379,10 +447,10 @@ def replace_index_cycles_into_run_info(**kwargs):
     rundir_label = kwargs.get('rd_label')
 
     if overwrite_run_info_file:
-        index_cycles_from_metadata = __get_index_cycles_from_metadata(ir_conf=ir_conf,
-                                                                      rundir_label=rundir_label)
+        index_cycles_from_metadata = _get_index_cycles_from_metadata(ir_conf=ir_conf,
+                                                                     rundir_label=rundir_label)
 
-        index_cycles_from_run_info_file, default_index_cycles = __get_index_cycles_from_run_info_file(
+        index_cycles_from_run_info_file, default_index_cycles = _get_index_cycles_from_run_info_file(
             run_info_file_path=run_info_file_path,
             get_default_values=True)
 
@@ -413,6 +481,7 @@ def bcl2fastq(**kwargs):
     rd_path = kwargs.get('rd_path')
     ds_path = kwargs.get('ds_path')
     ssht_path = kwargs.get('ssht_path')
+    run_info_file_path = kwargs.get('run_info_path')
     no_lane_splitting = kwargs.get('no_lane_splitting', False)
     barcode_mismatches = kwargs.get('barcode_mismatches', 1)
     submit_to_batch_scheduler = kwargs.get('batch_queuing', True)
@@ -435,14 +504,20 @@ def bcl2fastq(**kwargs):
         samplesheet = IEMSampleSheetReader(f)
 
     barcode_mask = samplesheet.get_barcode_mask()
+    is_paired_end = _is_paired_end(run_info_file_path=run_info_file_path)
+
     for lane, barcode_length in barcode_mask.items():
         if barcode_length['index'] is None or barcode_length['index'] in ['None']:
             continue
+
         elif barcode_length['index1'] is None or barcode_length['index1'] in ['None']:
-            options.append("--use-bases-mask {}:Y*,I{}n*,Y*".format(lane, barcode_length['index']))
+            mask = "{}:Y*,I{}n*,Y*".format(lane, barcode_length['index']) if is_paired_end \
+                else "{}:Y*,I{}n*".format(lane, barcode_length['index'])
         else:
-            options.append(
-                "--use-bases-mask {}:Y*,I{}n*,I{}n*,Y*".format(lane, barcode_length['index'], barcode_length['index1']))
+            mask = "{}:Y*,I{}n*,I{}n*,Y*".format(lane, barcode_length['index'], barcode_length['index1']) \
+                if is_paired_end else "{}:Y*,I{}n*,I{}n*".format(lane, barcode_length['index'], barcode_length['index1'])
+
+        options.append("--use-bases-mask {}".format(mask))
 
     cmd_line = shlex.split(' '.join([command, rd_arg, output_arg,
                                     samplesheet_arg, ' '.join(options)]))
@@ -467,18 +542,21 @@ def bcl2fastq(**kwargs):
     return True if output else False
 
 
-@app.task(name='presta.app.tasks.qc_runner', ignore_result=True)
+@app.task(name='presta.app.tasks.qc_runner')
 def qc_runner(file_list, **kwargs):
     def chunk(lis, n):
         return [lis[i:i + n] for i in range(0, len(lis), n)]
 
     chunk_size = kwargs.get('chunk_size', 6)
+    tasks = list()
     for f in chunk(file_list, chunk_size):
-        fastqc.s(f, outdir=kwargs.get('outdir'),
-                 threads=chunk_size,
-                 batch_queuing=kwargs.get('batch_queuing'),
-                 queue_spec=kwargs.get('queue_spec')
-                 ).delay()
+        task = fastqc.s(f, outdir=kwargs.get('outdir'),
+                        threads=chunk_size,
+                        batch_queuing=kwargs.get('batch_queuing'),
+                        queue_spec=kwargs.get('queue_spec')
+                        ).delay()
+        tasks.append(task.task_id)
+    return tasks
 
 
 @app.task(name='presta.app.tasks.fastqc')
@@ -551,7 +629,114 @@ def rd_collect_samples(**kwargs):
     return samples
 
 
-def __set_imetadata(ir_conf, ipath, imetadata):
+@app.task(name='presta.app.tasks.search_rd_to_archive')
+def search_rd_to_archive(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    conf = get_conf(logger, None)
+    io_conf = conf.get_io_section()
+
+    rd_root_path = kwargs.get('rd_root_path') if kwargs.get('rd_root_path') \
+        else io_conf.get('rundirs_root_path')
+    archive_root_path = kwargs.get('archive_root_path') if kwargs.get('archive_root_path') \
+        else io_conf.get('archive_root_path')
+
+    logger.info('Checking rundirs in: {}'.format(rd_root_path))
+    localroot, dirnames, filenames = os.walk(rd_root_path).next()
+
+    for rd_label in dirnames:
+        rd_path = os.path.join(localroot,
+                               rd_label)
+
+        if check_rd_to_archive(rd_path=rd_path,
+                               io_conf=io_conf):
+
+            logger.info('{} processed. Ready to be archived'.format(rd_label))
+            if emit_events:
+                archive_task = archive_rd.si(rd_path=rd_path,
+                                             archive_path=os.path.join(archive_root_path,
+                                                                       rd_label,
+                                                                       io_conf.get('rawdata_folder_name')))
+                archive_task.delay()
+
+
+@app.task(name='presta.app.tasks.search_rd_to_stage')
+def search_rd_to_stage(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    conf = get_conf(logger, None)
+    io_conf = conf.get_io_section()
+
+    archive_root_path = kwargs.get('archive_root_path') if kwargs.get('archive_root_path') \
+        else io_conf.get('archive_root_path')
+
+    stage_root_path = kwargs.get('stage_root_path') if kwargs.get('stage_root_path') \
+        else io_conf.get('stage_root_path')
+
+    logger.info('Checking rundirs in: {}'.format(archive_root_path))
+    localroot, dirnames, filenames = os.walk(archive_root_path).next()
+
+    for rd_label in dirnames:
+        rd_path = os.path.join(localroot,
+                               rd_label)
+
+        if check_rd_to_stage(rd_path=rd_path,
+                             io_conf=io_conf):
+
+            logger.info('{} processed. Ready to be staged'.format(rd_label))
+            if emit_events:
+                stage_task = stage_rd.si(rd_path=rd_path,
+                                         stage_path=os.path.join(stage_root_path,
+                                                                 rd_label))
+                stage_task.delay()
+
+
+@app.task(name='presta.app.tasks.archive_rd')
+def archive_rd(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    archive_path = kwargs.get('archive_path')
+
+    src = rd_path
+    dest = archive_path
+
+    logger.info('Archiving {} in {}'.format(src, dest))
+    mv_task = move.si(src=src, dest=dest)
+    mv_task.apply_async()
+
+
+@app.task(name='presta.app.tasks.stage_rd')
+def archive_rd(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    archive_path = kwargs.get('archive_path')
+
+    src = rd_path
+    dest = archive_path
+
+    logger.info('Archiving {} in {}'.format(src, dest))
+    mv_task = move.si(src=src, dest=dest)
+    mv_task.apply_async()
+
+
+@app.task(name='presta.app.tasks.check_rd_to_archive')
+def check_rd_to_archive(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    io_conf = kwargs.get('io_conf')
+
+    rd_progress_status = check_rd_progress_status(rd_path=rd_path, io_conf=io_conf)
+
+    return rd_progress_status in PROGRESS_STATUS.get('COMPLETED')
+
+
+@app.task(name='presta.app.tasks.check_rd_progress_status')
+def check_rd_progress_status(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    io_conf = kwargs.get('io_conf')
+
+    started_file = io_conf.get('preprocessing_started_file')
+    completed_file = io_conf.get('preprocessing_completed_file')
+
+    return check_progress_status(rd_path, started_file, completed_file)
+
+
+def _set_imetadata(ir_conf, ipath, imetadata):
 
     ir = build_object_store(store='irods',
                             host=ir_conf['host'],
@@ -567,7 +752,7 @@ def __set_imetadata(ir_conf, ipath, imetadata):
         ir.sess.cleanup()
 
 
-def __copy_file_into_irods(**kwargs):
+def _copy_file_into_irods(**kwargs):
     ir_conf = kwargs.get('conf')
     file_path = kwargs.get('file_path')
     irods_path = kwargs.get('irods_path')
@@ -587,7 +772,7 @@ def __copy_file_into_irods(**kwargs):
         ir.sess.cleanup()
 
 
-def __get_index_cycles_from_metadata(ir_conf, rundir_label):
+def _get_index_cycles_from_metadata(ir_conf, rundir_label):
     ipath = os.path.join(ir_conf['runs_collection'],
                          rundir_label)
     rundir_has_metadata, imetadata = check_metadata(ir_conf=ir_conf,
@@ -603,7 +788,7 @@ def __get_index_cycles_from_metadata(ir_conf, rundir_label):
     return dict(index=None, index1=None)
 
 
-def __get_index_cycles_from_run_info_file(run_info_file_path, get_default_values=False):
+def _get_index_cycles_from_run_info_file(run_info_file_path, get_default_values=False):
     with open(run_info_file_path, 'r') as f:
         run_info_file = IEMRunInfoReader(f)
 
@@ -612,6 +797,10 @@ def __get_index_cycles_from_run_info_file(run_info_file_path, get_default_values
 
     return run_info_file.get_index_cycles()
 
+
+def _is_paired_end(run_info_file_path):
+    run_info_file = IEMRunInfoReader(run_info_file_path)
+    return run_info_file.is_paired_end_sequencing()
 
 def runGEJob(jt_attr):
     def init_job_template(jt, attr):
