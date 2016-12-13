@@ -101,6 +101,43 @@ def qc_completed(params):
     )
     set_progress_status.si(**params).delay()
 
+
+@task
+def delivery_started(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        delivery_started.__name__,
+        set_progress_status.__name__)
+    )
+    set_progress_status.si(**params).delay()
+
+
+@task
+def delivery_completed(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        delivery_completed.__name__,
+        set_progress_status.__name__)
+    )
+    set_progress_status.si(**params).delay()
+
+
+@task
+def merge_started(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        merge_started.__name__,
+        set_progress_status.__name__)
+    )
+    set_progress_status.si(**params).delay()
+
+
+@task
+def merge_completed(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        merge_completed.__name__,
+        set_progress_status.__name__)
+    )
+    set_progress_status.si(**params).delay()
+
+
 @task
 def check_batches(params):
     logger.info('Received event "{}". Run task "{}"'.format(
@@ -140,6 +177,7 @@ def copy_qc_folders(params):
 
     copy_qc_dirs.si(**params).delay()
 
+
 @task
 def merge_datasets(params):
     logger.info('Received event "{}". Run task "{}"'.format(
@@ -147,7 +185,9 @@ def merge_datasets(params):
         merge.__name__)
     )
 
-    merge.si(**params).delay()
+    merge_task = merge.si(**params).delay()
+    return merge_task.task_id
+
 
 @task
 def nothing_to_do(params):
@@ -163,15 +203,15 @@ def trigger_event(event, params,
 
     # If all task is successfully completed
     if trigger:
-        dispatch_event(event, params)
+        return dispatch_event(event, params)
 
     # If at least one task is failed
-    dispatch_event(event_failure, params_failure)
+    return dispatch_event(event_failure, params_failure)
 
 
 @app.task(name='presta.app.router.dispatch_event')
 def dispatch_event(event, params):
-    tasks[event](params)
+    return tasks[event](params)
 
 
 def wait_for_jobs_to_complete(tasks=list()):

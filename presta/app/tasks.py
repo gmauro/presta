@@ -253,6 +253,7 @@ def copy(src, dest):
     except OSError as e:
         if e.errno == errno.ENOTDIR:
             shutil.copy(src, dest)
+            result = True
         else:
             logger.error('Source not copied. Error: {}'.format(e))
     return result
@@ -327,7 +328,7 @@ def merge(**kwargs):
 @app.task(name='presta.app.tasks.set_progress_status')
 def set_progress_status(**kwargs):
     progress_status_file = kwargs.get('progress_status_file')
-    return touch(progress_status_file)
+    return touch(progress_status_file, logger)
 
 
 @app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)
