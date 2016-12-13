@@ -253,6 +253,7 @@ def copy(src, dest):
     except OSError as e:
         if e.errno == errno.ENOTDIR:
             shutil.copy(src, dest)
+            result = True
         else:
             logger.error('Source not copied. Error: {}'.format(e))
     return result
@@ -327,7 +328,7 @@ def merge(**kwargs):
 @app.task(name='presta.app.tasks.set_progress_status')
 def set_progress_status(**kwargs):
     progress_status_file = kwargs.get('progress_status_file')
-    return touch(progress_status_file)
+    return touch(progress_status_file, logger)
 
 
 @app.task(name='presta.app.tasks.sanitize_metadata', ignore_result=True)
@@ -668,8 +669,8 @@ def search_rd_to_stage(**kwargs):
     archive_root_path = kwargs.get('archive_root_path') if kwargs.get('archive_root_path') \
         else io_conf.get('archive_root_path')
 
-    stage_root_path = kwargs.get('stage_root_path') if kwargs.get('stage_root_path') \
-        else io_conf.get('stage_root_path')
+    stage_root_path = kwargs.get('staging_root_path') if kwargs.get('staging_root_path') \
+        else io_conf.get('staging_root_path')
 
     logger.info('Checking rundirs in: {}'.format(archive_root_path))
     localroot, dirnames, filenames = os.walk(archive_root_path).next()
@@ -681,7 +682,7 @@ def search_rd_to_stage(**kwargs):
         if check_rd_to_stage(rd_path=rd_path,
                              io_conf=io_conf):
 
-            logger.info('{} processed. Ready to be staged'.format(rd_label))
+            logger.info('{} backuped. Ready to be staged'.format(rd_label))
             if emit_events:
                 stage_task = stage_rd.si(rd_path=rd_path,
                                          stage_path=os.path.join(stage_root_path,
@@ -703,14 +704,14 @@ def archive_rd(**kwargs):
 
 
 @app.task(name='presta.app.tasks.stage_rd')
-def archive_rd(**kwargs):
+def stage_rd(**kwargs):
     rd_path = kwargs.get('rd_path')
-    archive_path = kwargs.get('archive_path')
+    stage_path = kwargs.get('stage_path')
 
     src = rd_path
-    dest = archive_path
+    dest = stage_path
 
-    logger.info('Archiving {} in {}'.format(src, dest))
+    logger.info('Staging {} in {}'.format(src, dest))
     mv_task = move.si(src=src, dest=dest)
     mv_task.apply_async()
 
@@ -725,6 +726,16 @@ def check_rd_to_archive(**kwargs):
     return rd_progress_status in PROGRESS_STATUS.get('COMPLETED')
 
 
+@app.task(name='presta.app.tasks.check_rd_to_stage')
+def check_rd_to_stage(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    io_conf = kwargs.get('io_conf')
+
+    rd_backup_status = check_rd_backup_status(rd_path=rd_path, io_conf=io_conf)
+
+    return rd_backup_status in PROGRESS_STATUS.get('COMPLETED')
+
+
 @app.task(name='presta.app.tasks.check_rd_progress_status')
 def check_rd_progress_status(**kwargs):
     rd_path = kwargs.get('rd_path')
@@ -732,6 +743,17 @@ def check_rd_progress_status(**kwargs):
 
     started_file = io_conf.get('preprocessing_started_file')
     completed_file = io_conf.get('preprocessing_completed_file')
+
+    return check_progress_status(rd_path, started_file, completed_file)
+
+
+@app.task(name='presta.app.tasks.check_rd_backup_status')
+def check_rd_backup_status(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    io_conf = kwargs.get('io_conf')
+
+    started_file = io_conf.get('backup_started_file')
+    completed_file = io_conf.get('backup_completed_file')
 
     return check_progress_status(rd_path, started_file, completed_file)
 

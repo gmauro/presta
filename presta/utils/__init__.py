@@ -214,8 +214,6 @@ def format_dataset_filename(sample_label, lane=None, read=None, ext=None, uid=Fa
     if ext:
         filename = '.'.join([filename, ext])
 
-
-
     return sanitize_filename(filename)
 
 
@@ -238,8 +236,9 @@ def paths_setup(logger, cf_from_cli=None):
     return sorted(config_file_paths)[0].path
 
 
-def touch(path):
+def touch(path, logger):
     try:
+
         with open(path, 'a'):
             os.utime(path, None)
     except IOError as e:

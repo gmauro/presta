@@ -37,11 +37,11 @@ class DeliveryWorkflow(object):
         self.destination = args.destination
         self.dry_run = args.dry_run
 
-        conf = get_conf(logger, args.config_file)
-        self.conf = conf
+        self.conf = get_conf(logger, args.config_file)
+        self.io_conf = self.conf.get_io_section()
 
         self.batch_id = batch_id = args.batch_id
-        c = Client(conf=conf, logger=logger)
+        c = Client(conf=self.conf, logger=logger)
         c.init_bika()
         batch_info = c.bk.get_batch_info(batch_id)
         if batch_info:
@@ -52,11 +52,7 @@ class DeliveryWorkflow(object):
             sys.exit()
 
         # input path must exists as parser argument or as config file argument
-        if args.input_path:
-            input_path = args.input_path
-        else:
-            io_conf = conf.get_io_section()
-            input_path = io_conf.get('archive_root_path')
+        input_path = args.input_path if args.input_path else self.io_conf.get('archive_root_path')
         path_exists(input_path, logger)
         self.input_path = input_path
 
@@ -73,6 +69,20 @@ class DeliveryWorkflow(object):
 
     def __fs2fs_carrier(self, ipath, opath):
 
+        self.delivery_started = os.path.join(opath,
+                                             self.batch_id,
+                                             self.io_conf.get('delivery_started_file'))
+        self.delivery_completed = os.path.join(opath,
+                                               self.batch_id,
+                                               self.io_conf.get('delivery_completed_file'))
+
+        self.merge_started = os.path.join(opath,
+                                          self.batch_id,
+                                          self.io_conf.get('merge_started_file'))
+        self.merge_completed = os.path.join(opath,
+                                            self.batch_id,
+                                            self.io_conf.get('merge_completed_file'))
+
         bids = [_ for _ in self.batch_info.keys() if self.batch_info[_].get(
             'type') not in SAMPLE_TYPES_TOSKIP]
         self.logger.info('Looking for files related to {} Bika ids'.format(
@@ -87,6 +97,11 @@ class DeliveryWorkflow(object):
         self.logger.info("found {} files".format(count))
 
         to_be_merged = dict()
+
+        if not self.dry_run:
+            dispatch_event.si(event='delivery_started',
+                              params=dict(progress_status_file=self.delivery_started)
+                              ).delay()
 
         for bid in bids:
             sample_label = self.batch_info[bid].get('client_sample_id')
@@ -142,6 +157,11 @@ class DeliveryWorkflow(object):
 
         if self.merge:
 
+            if not self.dry_run:
+                dispatch_event.si(event='merge_started',
+                                  params=dict(progress_status_file=self.merge_started)
+                                  ).delay()
+
             for bid, file_ext in to_be_merged.iteritems():
                 sample_label = self.batch_info[bid].get('client_sample_id')
                 for ext, reads in file_ext.iteritems():
@@ -160,8 +180,25 @@ class DeliveryWorkflow(object):
                                                           params=dict(src=src,
                                                                       dst=dst,
                                                                       remove_src=True),
-                                                          tasks=tsk)
-                            merge_task.delay()
+                                                          tasks=tsk).delay()
+                            task_id = merge_task.get()
+                            to_be_merged[bid][ext][read]['tsk'] = [task_id]
+
+        if not self.dry_run:
+            task_ids = list()
+            for bid, file_ext in to_be_merged.iteritems():
+                for ext, reads in file_ext.iteritems():
+                    for read, datasets in reads.iteritems():
+                        task_ids.extend(datasets['tsk'])
+
+            trigger_event.si(event='delivery_completed',
+                             params=dict(progress_status_file=self.delivery_completed),
+                             tasks=task_ids).delay()
+
+            if self.merge:
+                trigger_event.si(event='merge_completed',
+                                 params=dict(progress_status_file=self.merge_completed),
+                                 tasks=task_ids).delay()
 
     def __execute_playbook(self, playbook, inventory_file,
                            random_user, random_clear_text_password):
@@ -207,11 +244,8 @@ class DeliveryWorkflow(object):
 
     def run(self):
         if self.destination == 'path':
-            io_conf = self.conf.get_io_section()
-            if self.output_path:
-                output_path = self.output_path
-            else:
-                output_path = io_conf.get('ds_export_path')
+
+            output_path = self.output_path if self.output_path else self.io_conf.get('ds_export_path')
 
             # if not path_exists(output_path, logger, force=False):
             #     ensure_dir(output_path)
@@ -236,22 +270,18 @@ class DeliveryWorkflow(object):
             self.logger.info('password: {}'.format(random_clear_text_password))
 
             playbook_label = 'create_ftp_user.yml'
-            if self.playbook_path:
-                playbook_path = self.playbook_path
-            else:
-                io_conf = self.conf.get_io_section()
-                playbook_path = os.path.expanduser(io_conf.get('playbooks_path'))
+            playbook_path = self.playbook_path if self.playbook_path \
+                else os.path.expanduser(self.io_conf.get('playbooks_path'))
             playbook = os.path.join(playbook_path, playbook_label)
+
             path_exists(playbook, self.logger)
 
             inventory_label = 'inventory'
-            if self.inventory:
-                inventory = self.inventory
-            else:
-                io_conf = self.conf.get_io_section()
-                inventory_path = os.path.expanduser(io_conf.get('playbooks_path'))
-                inventory = os.path.join(inventory_path,
-                                         inventory_label)
+
+            inventory = self.inventory if self.inventory \
+                else os.path.join(os.path.expanduser(self.io_conf.get('playbooks_path')),
+                                  inventory_label)
+
             path_exists(inventory, self.logger)
 
             results = self.__execute_playbook(playbook,
@@ -260,12 +290,9 @@ class DeliveryWorkflow(object):
                                               random_clear_text_password)
             self.logger.info('Playbook result: {}'.format(results))
 
-            if self.output_path:
-                output_path = self.output_path
-            else:
-                io_conf = self.conf.get_io_section()
-                output_path = os.path.join(io_conf.get('ftp_export_path'),
-                                           random_user)
+            output_path = self.output_path if self.output_path \
+                else os.path.join(self.io_conf.get('ftp_export_path'),
+                                  random_user)
             path_exists(output_path, self.logger)
 
             self.__fs2fs_carrier(self.input_path, output_path)
