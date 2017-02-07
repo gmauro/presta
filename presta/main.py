@@ -9,6 +9,7 @@ SUBMOD_NAMES = [
     "proc_rundir",
     "qc",
     "sync_lims",
+    "dictionaries",
 ]
 SUBMODULES = [import_module("%s.%s" % (__package__, n)) for n in SUBMOD_NAMES]
 

@@ -40,20 +40,20 @@ class DeliveryWorkflow(object):
         self.conf = get_conf(logger, args.config_file)
         self.io_conf = self.conf.get_io_section()
 
-        self.batch_id = batch_id = args.batch_id
-        c = Client(conf=self.conf, logger=logger)
+        self.batch_id = args.batch_id
+        c = Client(conf=self.conf, logger=self.logger)
         c.init_bika()
-        batch_info = c.bk.get_batch_info(batch_id)
+        batch_info = c.bk.get_batch_info(self.batch_id)
         if batch_info:
             self.batch_info = batch_info
         else:
             logger.error('I have retrieved any information of the samples '
-                         'owned by the batch {}'.format(batch_id))
+                         'owned by the batch {}'.format(self.batch_id))
             sys.exit()
 
         # input path must exists as parser argument or as config file argument
         input_path = args.input_path if args.input_path else self.io_conf.get('archive_root_path')
-        path_exists(input_path, logger)
+        path_exists(input_path, self.logger)
         self.input_path = input_path
 
         output_path = args.output_path if args.output_path else None
