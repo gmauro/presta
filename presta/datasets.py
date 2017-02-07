@@ -28,14 +28,20 @@ class DatasetsManager(object):
             extended_id = fname.split('_')[0]
             _id = '-'.join(extended_id.split('-')[:-1])
             if _id in self.ids:
-                list_item = {'extended_id': extended_id,
-                             'filename': fname,
-                             'filepath': path,
-                             'file_ext': file_ext,
-                             '_id': _id,
-                             'lane': fname.split('_')[2] if fname.split('_')[2].startswith('L') else None,
-                             'read_label': fname.split('_')[2] if fname.split('_')[2].startswith('R') else fname.split('_')[3],
-                             }
+                rd_label_index = path.split('/').index(ds_dir_label) - 1
+                rd_label = path.split('/')[rd_label_index]
+                fc_label = rd_label.split('_')[-1][1:]
+
+                list_item = dict(extended_id=extended_id,
+                                 filename=fname,
+                                 filepath=path,
+                                 file_ext=file_ext,
+                                 _id=_id,
+                                 lane=fname.split('_')[2] if fname.split('_')[2].startswith('L') else None,
+                                 read_label=fname.split('_')[2] if fname.split('_')[2].startswith('R') else fname.split('_')[3],
+                                 rd_label=rd_label,
+                                 fc_label=fc_label,
+                                 )
                 if _id not in results:
                     results[_id] = []
                 results[_id].append(list_item)
