@@ -1,4 +1,5 @@
 import sys
+import os
 import json
 import yaml
 
@@ -25,6 +26,9 @@ class DictWorkflow(object):
         self.input_path = input_path
 
         output_file = args.output_file if args.output_file else None
+        if output_file != os.path.realpath(output_file):
+            self.logger.error('{} is not a valid path. Please use absolute path'.format(output_file))
+            sys.exit()
         self.output_file = output_file
 
         self.batch_ids = args.batch_ids if args.batch_ids else list()
@@ -43,12 +47,12 @@ class DictWorkflow(object):
                 self.bids.extend(bids)
                 self.batches_info.update(batch_info)
             else:
-                logger.error('I have retrieved any information of the samples '
-                             'owned by the batch {}'.format(batch_id))
+                self.logger.error('I have retrieved any information of the samples '
+                                  'owned by the batch {}'.format(batch_id))
 
         if len(self.bids) == 0:
-            logger.error('I have retrieved any information of the batches '
-                         '{}'.format(" ".join(self.batch_ids)))
+            self.logger.error('I have retrieved any information of the batches '
+                              '{}'.format(" ".join(self.batch_ids)))
 
             sys.exit()
 
@@ -103,6 +107,7 @@ class DictWorkflow(object):
 
         self.logger.info('Found {} samples'.format(len(samples.keys())))
         self.logger.info('Found {} units'.format(len(units.keys())))
+        self.logger.info("Writing in output file: {} ".format(self.output_file))
 
         dictionary = dict(samples=samples,
                           units=units)
