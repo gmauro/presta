@@ -443,30 +443,28 @@ def replace_values_into_samplesheet(**kwargs):
           ignore_result=True)
 def replace_index_cycles_into_run_info(**kwargs):
     ir_conf = kwargs.get('conf')
-    overwrite_run_info_file = not kwargs.get('barcodes_have_same_size')
     run_info_file_path = kwargs.get('run_info_path')
     rundir_label = kwargs.get('rd_label')
 
-    if overwrite_run_info_file:
-        index_cycles_from_metadata = _get_index_cycles_from_metadata(ir_conf=ir_conf,
-                                                                     rundir_label=rundir_label)
+    index_cycles_from_metadata = _get_index_cycles_from_metadata(ir_conf=ir_conf,
+                                                                 rundir_label=rundir_label)
 
-        index_cycles_from_run_info_file, default_index_cycles = _get_index_cycles_from_run_info_file(
-            run_info_file_path=run_info_file_path,
-            get_default_values=True)
+    index_cycles_from_run_info_file, default_index_cycles = _get_index_cycles_from_run_info_file(
+        run_info_file_path=run_info_file_path,
+        get_default_values=True)
 
-        index_cycles = default_index_cycles \
-            if index_cycles_from_metadata == index_cycles_from_run_info_file\
-            else index_cycles_from_metadata
+    index_cycles = default_index_cycles \
+        if index_cycles_from_metadata == index_cycles_from_run_info_file \
+        else index_cycles_from_metadata
 
-        logger.info('Editing index cycles on: {}\n'
-                    'Old values:{}\n'
-                    'New values: {}'.format(run_info_file_path,
-                                            index_cycles_from_run_info_file,
-                                            index_cycles))
+    logger.info('Editing index cycles on: {}\n'
+                'Old values:{}\n'
+                'New values: {}'.format(run_info_file_path,
+                                        index_cycles_from_run_info_file,
+                                        index_cycles))
 
-        run_info_file = IEMRunInfoReader(run_info_file_path)
-        run_info_file.set_index_cycles(index_cycles)
+    run_info_file = IEMRunInfoReader(run_info_file_path)
+    run_info_file.set_index_cycles(index_cycles)
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)

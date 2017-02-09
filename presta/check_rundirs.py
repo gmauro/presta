@@ -51,7 +51,6 @@ class RundirsRootpath(object):
                                                  ir_conf=self.ir_conf,
                                                  io_conf=self.io_conf)
 
-            self.logger.info(checks)
             ready_to_be_preprocessed = checks[0] and checks[1] and checks[2][0] and checks[4]
 
             if self.emit_events and ready_to_be_preprocessed:
