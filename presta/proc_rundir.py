@@ -113,7 +113,6 @@ class PreprocessingWorkflow(object):
         check = rd_status_checks[0] and rd_status_checks[1] and \
                 rd_status_checks[2][0]
 
-        barcodes_have_same_size = rd_status_checks[2][1]
         check_sanitize_metadata = not rd_status_checks[3]
 
         if not check:
@@ -178,7 +177,7 @@ class PreprocessingWorkflow(object):
             samplesheet_task,
 
             replace_index_cycles_into_run_info.si(conf=self.ir_conf,
-                                                  barcodes_have_same_size=barcodes_have_same_size,
+                                                  ssht_path=self.samplesheet['path'],
                                                   run_info_path=self.run_info['path'],
                                                   rd_label=self.rd['label']),
 
@@ -192,7 +191,7 @@ class PreprocessingWorkflow(object):
                          queue_spec=self.queues_conf.get('low')),
 
             replace_index_cycles_into_run_info.si(conf=self.ir_conf,
-                                                  barcodes_have_same_size=barcodes_have_same_size,
+                                                  ssht_path=self.samplesheet['path'],
                                                   run_info_path=self.run_info['path'],
                                                   rd_label=self.rd['label']),
 
