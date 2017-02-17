@@ -482,6 +482,7 @@ def bcl2fastq(**kwargs):
     ssht_path = kwargs.get('ssht_path')
     run_info_file_path = kwargs.get('run_info_path')
     no_lane_splitting = kwargs.get('no_lane_splitting', False)
+    with_failed_reads = kwargs.get('with_failed_reads', False)
     barcode_mismatches = kwargs.get('barcode_mismatches', 1)
     submit_to_batch_scheduler = kwargs.get('batch_queuing', True)
     queue_spec = kwargs.get('queue_spec')
@@ -498,6 +499,9 @@ def bcl2fastq(**kwargs):
 
     if no_lane_splitting:
         options.append('--no-lane-splitting')
+
+    if with_failed_reads:
+        options.append('--with_failed_reads')
 
     with open(ssht_path, 'r') as f:
         samplesheet = IEMSampleSheetReader(f)
@@ -821,6 +825,7 @@ def _get_index_cycles_from_run_info_file(run_info_file_path, get_default_values=
 def _is_paired_end(run_info_file_path):
     run_info_file = IEMRunInfoReader(run_info_file_path)
     return run_info_file.is_paired_end_sequencing()
+
 
 def runGEJob(jt_attr):
     def init_job_template(jt, attr):
