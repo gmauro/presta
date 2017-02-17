@@ -86,6 +86,8 @@ class PreprocessingWorkflow(object):
 
         self.barcode_mismatches = args.barcode_mismatches
 
+        self.with_failed_reads = args.with_failed_reads
+
         self.overwrite_samplesheet = not os.path.isfile(ssheet_path)
 
         self.emit_events = args.emit_events
@@ -187,6 +189,7 @@ class PreprocessingWorkflow(object):
                          run_info_path=self.run_info['path'],
                          no_lane_splitting=self.no_lane_splitting,
                          barcode_mismatches=self.barcode_mismatches,
+                         with_failed_reads=self.with_failed_reads,
                          batch_queuing=self.batch_queuing,
                          queue_spec=self.queues_conf.get('low')),
 
@@ -237,6 +240,9 @@ def make_parser(parser):
 
     parser.add_argument("--barcode_mismatches", type=int, choices=[0, 1, 2],
                         default=1, help='Number of allowed mismatches per index')
+
+    parser.add_argument("--with_failed_reads", action='store_true',
+                        help='Include all clusters in the output, even clusters that are non-PF')
 
     parser.add_argument('--emit_events', action='store_true',
                         help='sends events to router')
