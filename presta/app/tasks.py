@@ -501,7 +501,7 @@ def bcl2fastq(**kwargs):
         options.append('--no-lane-splitting')
 
     if with_failed_reads:
-        options.append('--with_failed_reads')
+        options.append('--with-failed-reads')
 
     with open(ssht_path, 'r') as f:
         samplesheet = IEMSampleSheetReader(f)
