@@ -33,6 +33,16 @@ class DictWorkflow(object):
 
         self.batch_ids = args.batch_ids if args.batch_ids else list()
 
+        # sample list file must exists as parser argument
+
+        self.sample_list = list()
+        if args.sample_list_file:
+            if args.sample_list_file != os.path.realpath(args.sample_list_file):
+                self.logger.error('{} is not a valid path. Please use absolute path'.format(args.sample_list_file))
+                sys.exit()
+            path_exists(args.sample_list_file, self.logger)
+            self.sample_list = [line.strip() for line in open(args.sample_list_file, 'r')]
+
         c = Client(conf=self.conf, logger=self.logger)
         c.init_bika()
         self.bika = c.bk
@@ -41,7 +51,7 @@ class DictWorkflow(object):
         self.bids = list()
 
         for batch_id in self.batch_ids:
-            batch_info = self.bika.get_batch_info(batch_id)
+            batch_info = self.bika.get_batch_info(batch_id, self.sample_list)
             if batch_info:
                 bids = [_ for _ in batch_info.keys() if batch_info[_].get('type') not in SAMPLE_TYPES_TOSKIP]
                 self.bids.extend(bids)
@@ -130,6 +140,9 @@ def make_parser(parser):
 
     parser.add_argument('--output_file', '-o', metavar="PATH", required=True,
                         help="Where output dictionary file have to be stored")
+
+    parser.add_argument('--sample_list_file', '-s', metavar="PATH",
+                        help="Where sample to select are stored")
 
     parser.add_argument('--output_format', '-f', type=str, choices=OUTPUT_FORMAT,
                         default="json",
