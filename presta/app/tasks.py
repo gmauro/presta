@@ -4,6 +4,7 @@ from . import app
 from alta.objectstore import build_object_store
 from alta.utils import ensure_dir
 from celery import group
+from celery import chain
 import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
@@ -655,10 +656,17 @@ def search_rd_to_archive(**kwargs):
 
             logger.info('{} processed. Ready to be archived'.format(rd_label))
             if emit_events:
-                archive_task = archive_rd.si(rd_path=rd_path,
-                                             archive_path=os.path.join(archive_root_path,
-                                                                       rd_label,
-                                                                       io_conf.get('rawdata_folder_name')))
+                archiving_started_file = os.path.join(rd_path, io_conf.get('archiving_started_file'))
+                archiving_completed_file = os.path.join(rd_path, io_conf.get('archiving_completed_file'))
+
+                archive_task = chain(
+                    set_progress_status.si(progress_status_file=archiving_started_file),
+                    archive_rd.si(rd_path=rd_path,
+                                  archive_path=os.path.join(archive_root_path,
+                                                            rd_label,
+                                                            io_conf.get('rawdata_folder_name'))),
+                    set_progress_status.si(progress_status_file=archiving_completed_file),
+                )
                 archive_task.delay()
 
 
@@ -686,9 +694,17 @@ def search_rd_to_stage(**kwargs):
 
             logger.info('{} backuped. Ready to be staged'.format(rd_label))
             if emit_events:
-                stage_task = stage_rd.si(rd_path=rd_path,
-                                         stage_path=os.path.join(stage_root_path,
-                                                                 rd_label))
+                staging_started_file = os.path.join(rd_path, io_conf.get('staging_started_file'))
+                staging_completed_file = os.path.join(rd_path, io_conf.get('staging_completed_file'))
+
+
+                stage_task = chain(
+                    set_progress_status.si(progress_status_file=staging_started_file),
+                    stage_rd.si(rd_path=rd_path,
+                                stage_path=os.path.join(stage_root_path,
+                                                        rd_label)),
+                    set_progress_status.si(progress_status_file=staging_completed_file),
+                    )
                 stage_task.delay()
 
 
@@ -724,8 +740,9 @@ def check_rd_to_archive(**kwargs):
     io_conf = kwargs.get('io_conf')
 
     rd_progress_status = check_rd_progress_status(rd_path=rd_path, io_conf=io_conf)
+    rd_archiving_status = check_rd_archiving_status(rd_path=rd_path, io_conf=io_conf)
 
-    return rd_progress_status in PROGRESS_STATUS.get('COMPLETED')
+    return rd_progress_status in PROGRESS_STATUS.get('COMPLETED') and rd_archiving_status in PROGRESS_STATUS.get('TODO')
 
 
 @app.task(name='presta.app.tasks.check_rd_to_stage')
@@ -734,8 +751,9 @@ def check_rd_to_stage(**kwargs):
     io_conf = kwargs.get('io_conf')
 
     rd_backup_status = check_rd_backup_status(rd_path=rd_path, io_conf=io_conf)
+    rd_staging_status = check_rd_staging_status(rd_path=rd_path, io_conf=io_conf)
 
-    return rd_backup_status in PROGRESS_STATUS.get('COMPLETED')
+    return rd_backup_status in PROGRESS_STATUS.get('COMPLETED') and rd_staging_status in PROGRESS_STATUS.get('TODO')
 
 
 @app.task(name='presta.app.tasks.check_rd_progress_status')
@@ -756,6 +774,28 @@ def check_rd_backup_status(**kwargs):
 
     started_file = io_conf.get('backup_started_file')
     completed_file = io_conf.get('backup_completed_file')
+
+    return check_progress_status(rd_path, started_file, completed_file)
+
+
+@app.task(name='presta.app.tasks.check_rd_staging_status')
+def check_rd_staging_status(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    io_conf = kwargs.get('io_conf')
+
+    started_file = io_conf.get('staging_started_file')
+    completed_file = io_conf.get('staging_completed_file')
+
+    return check_progress_status(rd_path, started_file, completed_file)
+
+
+@app.task(name='presta.app.tasks.check_rd_archiving_status')
+def check_rd_archiving_status(**kwargs):
+    rd_path = kwargs.get('rd_path')
+    io_conf = kwargs.get('io_conf')
+
+    started_file = io_conf.get('archiving_started_file')
+    completed_file = io_conf.get('archiving_completed_file')
 
     return check_progress_status(rd_path, started_file, completed_file)
 

@@ -137,6 +137,40 @@ def merge_completed(params):
     )
     set_progress_status.si(**params).delay()
 
+@task
+def staging_started(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        staging_started.__name__,
+        set_progress_status.__name__)
+    )
+    set_progress_status.si(**params).delay()
+
+
+@task
+def staging_completed(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        staging_completed.__name__,
+        set_progress_status.__name__)
+    )
+    set_progress_status.si(**params).delay()
+
+@task
+def archiving_started(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        archiving_started.__name__,
+        set_progress_status.__name__)
+    )
+    set_progress_status.si(**params).delay()
+
+
+@task
+def archiving_completed(params):
+    logger.info('Received event "{}". Run tasks "{}" '.format(
+        archiving_completed.__name__,
+        set_progress_status.__name__)
+    )
+    set_progress_status.si(**params).delay()
+
 
 @task
 def check_batches(params):
