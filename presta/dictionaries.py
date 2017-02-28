@@ -52,7 +52,7 @@ class DictWorkflow(object):
             self.sample_list = [line.strip() for line in open(args.sample_list_file, 'r')]
         else:
             self.logger.info('No sample list provided, I\'ll recover all samples of batches selected')
-
+            
         self.batches_info = dict()
         self.bids = list()
 
