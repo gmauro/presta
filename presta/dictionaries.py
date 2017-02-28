@@ -20,6 +20,10 @@ class DictWorkflow(object):
         self.conf = get_conf(logger, args.config_file)
         self.io_conf = self.conf.get_io_section()
 
+        c = Client(conf=self.conf, logger=self.logger)
+        c.init_bika()
+        self.bika = c.bk
+
         # input path must exists as parser argument or as config file argument
         input_path = args.input_path if args.input_path else self.io_conf.get('archive_root_path')
         path_exists(input_path, self.logger)
@@ -31,7 +35,11 @@ class DictWorkflow(object):
             sys.exit()
         self.output_file = output_file
 
-        self.batch_ids = args.batch_ids if args.batch_ids else list()
+        if args.batch_ids:
+            self.batch_ids = args.batch_ids
+        else:
+            self.logger.info('No batches list provided, I\'ll recover all batches')
+            self.batch_ids = [b['id'] for b in self.bika.client.query_batches(params=dict())]
 
         # sample list file must exists as parser argument
 
@@ -42,10 +50,8 @@ class DictWorkflow(object):
                 sys.exit()
             path_exists(args.sample_list_file, self.logger)
             self.sample_list = [line.strip() for line in open(args.sample_list_file, 'r')]
-
-        c = Client(conf=self.conf, logger=self.logger)
-        c.init_bika()
-        self.bika = c.bk
+        else:
+            self.logger.info('No sample list provided, I\'ll recover all samples of batches selected')
 
         self.batches_info = dict()
         self.bids = list()
@@ -89,6 +95,7 @@ class DictWorkflow(object):
         units = dict()
 
         for bid in self.bids:
+            request_id = None
             if bid in datasets_info:
                 request_id = self.batches_info[bid].get('sample_label')
                 if request_id not in samples:
@@ -112,7 +119,7 @@ class DictWorkflow(object):
                     if src not in units[unit]:
                         units[unit].append(src)
 
-            if len(samples[request_id]) == 0:
+            if request_id in samples and len(samples[request_id]) == 0:
                 del samples[request_id]
 
         self.logger.info('Found {} samples'.format(len(samples.keys())))
@@ -132,7 +139,7 @@ Prepare dictionaries file to start post-processing
 
 def make_parser(parser):
 
-    parser.add_argument('--batch_ids', '-b', nargs='+', type=str, required=True,
+    parser.add_argument('--batch_ids', '-b', nargs='+', type=str,
                         help='Batch id from BikaLims (List of)')
 
     parser.add_argument('--input_path', '-i', metavar="PATH",
