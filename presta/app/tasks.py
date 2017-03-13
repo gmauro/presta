@@ -171,7 +171,6 @@ def samplesheet_ready(ir_conf, ipath):
     if exists:
         with iobj.open('r') as f:
             samplesheet = IEMSampleSheetReader(f)
-
         return exists, samplesheet.barcodes_have_the_same_size()
     else:
         return False, False
