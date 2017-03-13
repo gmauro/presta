@@ -154,7 +154,7 @@ class IEMSampleSheetReader(csv.DictReader):
                 if replace and f == label:
                     body.append(new_value)
                 else:
-                    if f in to_be_sanitized:
+                    if f in to_be_sanitized and row[f]:
                         body.append(sanitize(row[f]))
                     else:
                         body.append(row[f])
