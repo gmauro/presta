@@ -123,7 +123,7 @@ class IEMSampleSheetReader(csv.DictReader):
 
         for row in self.data:
             for f in self.data.fieldnames:
-                if f in to_be_verified:
+                if f in to_be_verified and row[f]:
                     lengths.append(len(row[f]))
 
         if len(lengths) == 0:
