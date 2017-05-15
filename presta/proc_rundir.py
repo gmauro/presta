@@ -113,7 +113,7 @@ class PreprocessingWorkflow(object):
             io_conf=self.io_conf)
 
         check = rd_status_checks[0] and rd_status_checks[1] and \
-                rd_status_checks[2][0]
+                rd_status_checks[2][0] and rd_status_checks[2][1]
 
         check_sanitize_metadata = not rd_status_checks[3]
 
@@ -191,7 +191,7 @@ class PreprocessingWorkflow(object):
                          barcode_mismatches=self.barcode_mismatches,
                          with_failed_reads=self.with_failed_reads,
                          batch_queuing=self.batch_queuing,
-                         queue_spec=self.queues_conf.get('low')),
+                         queue_spec=self.queues_conf.get('q_bcl2fastq')),
 
             replace_index_cycles_into_run_info.si(conf=self.ir_conf,
                                                   ssht_path=self.samplesheet['path'],

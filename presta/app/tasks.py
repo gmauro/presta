@@ -165,7 +165,9 @@ def samplesheet_ready(ir_conf, ipath):
     try:
         exists, iobj = ir.exists(ipath, delivery=True)
         ir.sess.cleanup()
-    except:
+    except Exception, e:
+        logger.error(str(e))
+        exists = False
         ir.sess.cleanup()
 
     if exists:
@@ -194,7 +196,8 @@ def check_metadata(ir_conf, ipath, get_metadata=False):
     try:
         exists, iobj = ir.exists(ipath, delivery=True)
         ir.sess.cleanup()
-    except:
+    except Exception, e:
+        logger.error(str(e))
         ir.sess.cleanup()
 
     if get_metadata:

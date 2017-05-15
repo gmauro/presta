@@ -95,41 +95,7 @@ class IEMSampleSheetReader(csv.DictReader):
         self.data = csv.DictReader(f.readlines(), delimiter=',')
 
     def barcodes_have_the_same_size(self):
-        def mean(data):
-            """Return the sample arithmetic mean of data."""
-            n = len(data)
-            if n < 1:
-                raise ValueError('mean requires at least one data point')
-            return sum(data) / float(n)
-
-        def _ss(data):
-            """Return sum of square deviations of sequence data."""
-            c = mean(data)
-            ss = sum((x - c) ** 2 for x in data)
-            return ss
-
-        def pstdev(data):
-            """Calculates the population standard deviation."""
-            n = len(data)
-
-            if n < 2:
-                raise ValueError('variance requires at least two data points')
-            ss = _ss(data)
-            pvar = ss / n  # the population variance
-            return pvar ** 0.5
-
-        lengths = []
-        to_be_verified = ['index']
-
-        for row in self.data:
-            for f in self.data.fieldnames:
-                if f in to_be_verified and row[f]:
-                    lengths.append(len(row[f]))
-
-        if len(lengths) == 0:
-            return True
-
-        return True if pstdev(lengths) == float(0) else False
+        return False if self.get_barcode_mask() is None else True
 
     def get_body(self, label='Sample_Name', new_value='', replace=True):
         def sanitize(mystr):
@@ -167,11 +133,17 @@ class IEMSampleSheetReader(csv.DictReader):
         barcodes_mask = dict()
 
         for row in self.data:
+            index = len(row['index']) if 'index' in row else None
+            index1 = len(row['index1']) if 'index1' in row else None
+
             if row['Lane'] not in barcodes_mask:
                 barcodes_mask[row['Lane']] = dict(
-                    index=len(row['index']) if 'index' in row else None,
-                    index1=len(row['index1']) if 'index1' in row else None,
+                    index=index,
+                    index1=index1,
                 )
+            else:
+                if index != barcodes_mask[row['Lane']]['index'] or index1 != barcodes_mask[row['Lane']]['index1']:
+                    return None
 
         return barcodes_mask
 
