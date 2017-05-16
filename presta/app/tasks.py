@@ -13,6 +13,7 @@ from presta.utils import runJob
 from presta.utils import get_conf
 from presta.utils import touch
 from presta.utils import check_progress_status, PROGRESS_STATUS
+from presta.utils import get_md5
 
 from pwd import getpwuid
 import errno
@@ -324,6 +325,28 @@ def merge(**kwargs):
         except OSError as e:
             logger.error('Sources not merged. Error: {}'.format(e))
             return list()
+
+    return True
+
+
+@app.task(name='presta.app.tasks.generate_md5_checksum')
+def generate_md5_checksum(**kwargs):
+    src = kwargs.get('src')
+    dst = kwargs.get('dst')
+
+    if os.path.exists(src):
+        try:
+            with open(src, 'rb') as f:
+                hash_string = get_md5(f)
+
+            with open(dst, 'w') as f:
+                f.write(hash_string)
+
+            return True
+
+        except IOError as e:
+            logger.error('MD5 hash not generated. Error: {}'.format(e))
+            return False
 
     return True
 

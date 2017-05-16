@@ -36,6 +36,7 @@ class DeliveryWorkflow(object):
         self.logger = logger
         self.destination = args.destination
         self.dry_run = args.dry_run
+        self.md5_check = args.md5_check
 
         self.conf = get_conf(logger, args.config_file)
         self.io_conf = self.conf.get_io_section()
@@ -146,6 +147,16 @@ class DeliveryWorkflow(object):
 
                             if not self.dry_run and tsk:
                                 to_be_merged[bid][ext][read]['tsk'].append(tsk.task_id)
+                        else:
+                            if self.md5_check:
+                                # MD5 CHECKSUM
+                                self.logger.info("Getting MD5 hash of {}".format(dst))
+                                if not self.dry_run:
+                                    md5_task = trigger_event.si(event='get_md5_checksum',
+                                                                params=dict(src=dst,
+                                                                            dst=".".join([dst, 'md5'])),
+                                                                tasks=[tsk.task_id]).delay()
+                                    task_id = md5_task.get()
 
             else:
                 msg = 'I have not found any file related to this ' \
@@ -156,7 +167,6 @@ class DeliveryWorkflow(object):
                 del to_be_merged[bid]
 
         if self.merge:
-
             if not self.dry_run:
                 dispatch_event.si(event='merge_started',
                                   params=dict(progress_status_file=self.merge_started)
@@ -182,6 +192,15 @@ class DeliveryWorkflow(object):
                                                                       remove_src=True),
                                                           tasks=tsk).delay()
                             task_id = merge_task.get()
+                            if self.md5_check:
+                                # MD5 CHECKSUM
+                                self.logger.info("Getting MD5 hash of {}".format(dst))
+                                md5_task = trigger_event.si(event='get_md5_checksum',
+                                                            params=dict(src=dst,
+                                                                        dst=".".join([dst, 'md5'])),
+                                                            tasks=[task_id]).delay()
+                                task_id = md5_task.get()
+
                             to_be_merged[bid][ext][read]['tsk'] = [task_id]
 
         if not self.dry_run:
@@ -321,6 +340,13 @@ def make_parser(parser):
                         help="Path to playbooks dir")
     parser.add_argument('--inventory', metavar="PATH",
                         help="Path to inventory file")
+    parser.add_argument('--md5_checksum', dest='md5_check',
+                        action='store_true',
+                        help='Get MD5 hash of each file')
+    parser.add_argument('--no_md5_checksum', dest='md5_check',
+                        action='store_false',
+                        help="Do not get MD5 hash of each file")
+    parser.set_defaults(md5_check=True)
 
 
 def implementation(logger, args):

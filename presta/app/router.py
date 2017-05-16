@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from . import app
 from presta.app.tasks import run_presta_check, run_presta_proc, run_presta_qc, run_presta_sync, merge, copy_qc_dirs, \
-    set_progress_status, search_rd_to_archive, search_rd_to_stage
+    set_progress_status, search_rd_to_archive, search_rd_to_stage, generate_md5_checksum
 from presta.app.lims import search_batches_to_sync, search_worksheets_to_sync, search_samples_to_sync
 
 from celery.result import AsyncResult
@@ -222,6 +222,15 @@ def merge_datasets(params):
     merge_task = merge.si(**params).delay()
     return merge_task.task_id
 
+@task
+def get_md5_checksum(params):
+    logger.info('Received event "{}". Run task "{}"'.format(
+        get_md5_checksum.__name__,
+        generate_md5_checksum.__name__)
+    )
+
+    md5_task = generate_md5_checksum.si(**params).delay()
+    return md5_task.task_id
 
 @task
 def nothing_to_do(params):
