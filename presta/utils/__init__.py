@@ -9,6 +9,7 @@ import string
 import sys
 import subprocess
 import uuid
+import hashlib
 
 import xml.etree.ElementTree as ET
 from alta import ConfigurationFromYamlFile
@@ -215,6 +216,21 @@ def touch(path, logger):
             os.utime(path, None)
     except IOError as e:
         logger.error("While touching {} file: {}".format(path, e.strerror))
+
+
+def read_chunks(file_handle, chunk_size=8192):
+    while True:
+        data = file_handle.read(chunk_size)
+        if not data:
+            break
+        yield data
+
+
+def get_md5(file_handle):
+    hasher = hashlib.md5()
+    for chunk in read_chunks(file_handle):
+        hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def check_progress_status(root_path, started_file, completed_file):
