@@ -340,7 +340,7 @@ def generate_md5_checksum(**kwargs):
                 hash_string = get_md5(f)
 
             with open(dst, 'w') as f:
-                f.write(hash_string)
+                f.write("{}  {}\n".format(hash_string, os.path.basename(src)))
 
             return True
 
