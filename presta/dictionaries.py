@@ -12,6 +12,23 @@ OUTPUT_FORMAT = ['json', 'yaml']
 SAMPLE_TYPES_TOSKIP = ['FLOWCELL', 'POOL']
 
 
+#
+# input_data file example
+#
+# default_paths: # default path where to look for files
+#   - "/default/path/1"
+#   - "/default/path/2"
+# batches:
+#   0: # from this batchid, retrieve only these samples
+#     bid: 01
+#     samples:
+#       - sid1
+#       - sid2
+#   1: # from this batchid, retrieve all the samples
+#     bid: 02
+#
+
+
 class DictWorkflow(object):
     def __init__(self, args=None, logger=None):
         self.logger = logger
@@ -24,10 +41,14 @@ class DictWorkflow(object):
         c.init_bika()
         self.bika = c.bk
 
-        # input path must exists as parser argument or as config file argument
-        input_path = args.input_path if args.input_path else self.io_conf.get('archive_root_path')
-        path_exists(input_path, self.logger)
-        self.input_path = input_path
+        path_exists(args.input_file, self.logger)
+        with open(args.input_file, 'r') as stream:
+            input_data = yaml.safe_load(stream)
+
+        self.input_paths = input_data.get('default_paths',
+                                          [self.io_conf.get('archive_root_path')])
+        for _ in self.input_paths:
+            path_exists(_, self.logger)
 
         output_file = args.output_file if args.output_file else None
         if output_file != os.path.realpath(output_file):
@@ -35,41 +56,30 @@ class DictWorkflow(object):
             sys.exit()
         self.output_file = output_file
 
-        if args.batch_ids:
-            self.batch_ids = args.batch_ids
-        else:
-            self.logger.info('No batches list provided, I\'ll recover all batches')
-            self.batch_ids = [b['id'] for b in self.bika.client.query_batches(params=dict())]
-
-        # sample list file must exists as parser argument
-
-        self.sample_list = list()
-        if args.sample_list_file:
-            if args.sample_list_file != os.path.realpath(args.sample_list_file):
-                self.logger.error('{} is not a valid path. Please use absolute path'.format(args.sample_list_file))
-                sys.exit()
-            path_exists(args.sample_list_file, self.logger)
-            self.sample_list = [line.strip() for line in open(args.sample_list_file, 'r')]
-        else:
-            self.logger.info('No sample list provided, I\'ll recover all samples of batches selected')
+        batches = input_data.get('batches', None)
             
         self.batches_info = dict()
-        self.bids = list()
+        self.sids = list()
 
-        for batch_id in self.batch_ids:
-            batch_info = self.bika.get_batch_info(batch_id, self.sample_list)
-            if batch_info:
-                bids = [_ for _ in batch_info.keys() if batch_info[_].get('type') not in SAMPLE_TYPES_TOSKIP]
-                self.bids.extend(bids)
-                self.batches_info.update(batch_info)
-            else:
-                self.logger.error('I have retrieved any information of the samples '
-                                  'owned by the batch {}'.format(batch_id))
+        for _, batch in batches.items():
+            bid = batch.get('bid', None)
+            samples = batch.get('samples', [])
 
-        if len(self.bids) == 0:
-            self.logger.error('I have retrieved any information of the batches '
-                              '{}'.format(" ".join(self.batch_ids)))
+            if bid:
+                self.logger.info("Retrieving info for batch {}".format(bid))
+                batch_info = self.bika.get_batch_info(bid, samples)
+                if batch_info:
+                    sids = [_ for _ in batch_info.keys() if batch_info[
+                        _].get('type') not in SAMPLE_TYPES_TOSKIP]
+                    self.sids.extend(sids)
+                    self.batches_info.update(batch_info)
+                else:
+                    self.logger.error('No samples information found for the '
+                                      'batch {}'.format(bid))
 
+        if not self.sids:
+            self.logger.error('I have not retrieve any information for the '
+                              'batches {}'.format(" ".join(self.sids)))
             sys.exit()
 
     def dump(self, source, destination, ext):
@@ -78,56 +88,56 @@ class DictWorkflow(object):
                 if ext == 'json':
                     json.dump(source, fp)
                 elif ext == 'yaml':
-                    yaml.safe_dump(source, fp, default_flow_style=False, allow_unicode=True)
+                    yaml.safe_dump(source, fp, default_flow_style=False,
+                                   allow_unicode=True)
         except OSError as e:
             self.logger.error('Data not dumped. Error: {}'.format(e))
             return False
         return True
 
     def run(self):
-        self.logger.info("searching for datasets in {}".format(self.input_path))
-        dm = DatasetsManager(self.logger, self.bids)
-        datasets_info, count = dm.collect_fastq_from_fs(self.input_path)
-
-        self.logger.info("found {} files".format(count))
-
+        dm = DatasetsManager(self.logger, self.sids)
         samples = dict()
         units = dict()
+        for ipath in self.input_paths:
+            self.logger.info("searching for datasets in {}".format(ipath))
+            datasets_info, count = dm.collect_fastq_from_fs(ipath)
 
-        for bid in self.bids:
-            request_id = None
-            if bid in datasets_info:
-                request_id = self.batches_info[bid].get('sample_label')
-                if request_id not in samples:
-                    samples[request_id] = list()
-                for f in datasets_info[bid]:
-                    src = f.get('filepath')
-                    lane = f.get('lane')
-                    fc = f.get('fc_label')
+            self.logger.info("found {} files".format(count))
 
-                    if lane is None:
-                        lane = 'L0000'
+            for bid in self.sids:
+                request_id = None
+                if bid in datasets_info:
+                    request_id = self.batches_info[bid].get('sample_label')
+                    if request_id not in samples:
+                        samples[request_id] = list()
+                    for f in datasets_info[bid]:
+                        src = f.get('filepath')
+                        lane = f.get('lane')
+                        fc = f.get('fc_label')
 
-                    unit = ".".join([fc, lane, request_id])
+                        if lane is None:
+                            lane = 'L0000'
 
-                    if unit not in samples[request_id]:
-                        samples[request_id].append(unit)
+                        unit = ".".join([fc, lane, request_id])
 
-                    if unit not in units:
-                        units[unit] = list()
+                        if unit not in samples[request_id]:
+                            samples[request_id].append(unit)
 
-                    if src not in units[unit]:
-                        units[unit].append(src)
+                        if unit not in units:
+                            units[unit] = list()
 
-            if request_id in samples and len(samples[request_id]) == 0:
-                del samples[request_id]
+                        if src not in units[unit]:
+                            units[unit].append(src)
 
+                if request_id in samples and len(samples[request_id]) == 0:
+                    del samples[request_id]
+
+        self.logger.info("Writing in output file: {} ".format(self.output_file))
         self.logger.info('Found {} samples'.format(len(samples.keys())))
         self.logger.info('Found {} units'.format(len(units.keys())))
-        self.logger.info("Writing in output file: {} ".format(self.output_file))
 
-        dictionary = dict(samples=samples,
-                          units=units)
+        dictionary = dict(samples=samples, units=units)
 
         self.dump(dictionary, self.output_file, self.output_format)
 
@@ -139,21 +149,15 @@ Prepare dictionaries file to start post-processing
 
 def make_parser(parser):
 
-    parser.add_argument('--batch_ids', '-b', nargs='+', type=str,
-                        help='Batch id from BikaLims (List of)')
-
-    parser.add_argument('--input_path', '-i', metavar="PATH",
-                        help="Where input datasets are stored")
+    parser.add_argument('--input_file', '-i', metavar="PATH", required=True,
+                        help="Yaml file with a list of batch ids and/or of "
+                             "sample ids from Bikalims")
 
     parser.add_argument('--output_file', '-o', metavar="PATH", required=True,
                         help="Where output dictionary file have to be stored")
 
-    parser.add_argument('--sample_list_file', '-s', metavar="PATH",
-                        help="Where sample to select are stored")
-
     parser.add_argument('--output_format', '-f', type=str, choices=OUTPUT_FORMAT,
-                        default="json",
-                        help='Output file format')
+                        default="json", help='Output file format')
 
 
 def implementation(logger, args):
