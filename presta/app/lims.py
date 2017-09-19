@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from . import app
 from alta.bims import Bims
 from presta.utils import get_conf
+from presta.utils import runJob
 from celery import chain
 
 from celery.utils.log import get_task_logger
@@ -58,6 +59,78 @@ def sync_worksheets(worksheets, **kwargs):
 
     else:
         logger.info('No worksheets to sync')
+
+    return True
+
+
+@app.task(name='presta.app.lims.process_deliveries')
+def process_deliveries(deliveries):
+
+    if isinstance(deliveries,list) and len(deliveries) > 0:
+        logger.info('{} deliveries ready to process'.format(len(deliveries)))
+        for delivery in deliveries:
+            pipeline = chain(
+                run_presta_delivery.si(delivery_id=delivery.get('id'))
+            )
+            pipeline.delay()
+
+    else:
+        logger.info('No deliveries to sync')
+
+
+    return True
+
+
+@app.task(name='presta.app.lims.set_delivery_started')
+def set_delivery_started(**kwargs):
+    delivery_id = kwargs.get('delivery_id')
+
+    conf = get_conf(logger, None)
+    bika_conf = conf.get_section('bika')
+    bika = __init_bika(bika_conf)
+
+    if delivery_id:
+        logger.info('Set delivery {} as started'.format(delivery_id))
+        res = bika.set_delivery_started(delivery_id)
+        logger.info('Result {}'.format(res))
+        return res.get('success')
+
+    return True
+
+
+@app.task(name='presta.app.lims.set_delivery_completed')
+def set_delivery_completed(**kwargs):
+    delivery_id = kwargs.get('delivery_id')
+
+    conf = get_conf(logger, None)
+    bika_conf = conf.get_section('bika')
+    bika = __init_bika(bika_conf)
+
+    if delivery_id:
+        logger.info('Set delivery {} as completed'.format(delivery_id))
+        res = bika.set_delivery_completed(delivery_id)
+        logger.info('Result {}'.format(res))
+        return res.get('success')
+
+    return True
+
+
+@app.task(name='presta.app.lims.update_delivery_details')
+def update_delivery_details(**kwargs):
+    delivery_id = kwargs.get('delivery_id')
+    user = kwargs.get('user')
+    password = kwargs.get('password')
+    path = kwargs.get('path')
+
+    conf = get_conf(logger, None)
+    bika_conf = conf.get_section('bika')
+    bika = __init_bika(bika_conf)
+
+    if delivery_id:
+        logger.info('Update details of delivery {}'.format(delivery_id))
+        res = bika.update_delivery_details(delivery_id, user=user, password=password, path=path)
+        logger.info('Result {}'.format(res))
+        return res.get('success')
 
     return True
 
@@ -211,11 +284,48 @@ def search_worksheets_to_sync(**kwargs):
     return True
 
 
+@app.task(name='presta.app.lims.search_deliveries_to_sync')
+def search_deliveries_to_sync(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    conf = get_conf(logger, None)
+    bika_conf = conf.get_section('bika')
+    bika = __init_bika(bika_conf)
+
+    deliveries = bika.get_deliveries_ready_to_process()
+
+    if emit_events:
+        pipeline = chain(
+            process_deliveries.si(deliveries),
+        )
+        pipeline.delay()
+
+    return True
+
+
 @app.task(name='presta.app.lims.search_samples_to_sync')
 def search_samples_to_sync(**kwargs):
     conf = get_conf(logger)
     bika_conf = conf.get_section('bika')
     return True
+
+
+@app.task(name='presta.app.lims.run_presta_delivery')
+def run_presta_delivery(**kwargs):
+    emit_events = kwargs.get('emit_events', False)
+    delivery_id = kwargs.get('delivery_id')
+
+    cmd_line = ['presta', 'delivery']
+
+    if delivery_id:
+        cmd_line.extend(['--delivery_id', delivery_id])
+
+        if emit_events:
+            cmd_line.append('--emit_events')
+
+        result = runJob(cmd_line, logger)
+        return True if result else False
+
+    return False
 
 
 def __init_bika(bika_conf, role='admin'):

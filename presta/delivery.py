@@ -12,6 +12,7 @@ Handle the delivery of NGS data obtained from the pre-processing step
 import os
 import sys
 
+from distutils.util import strtobool
 from ansible.parsing.dataloader import DataLoader
 from ansible.vars import VariableManager
 from ansible.inventory import Inventory
@@ -21,6 +22,7 @@ from collections import namedtuple
 from client import Client
 from datasets import DatasetsManager
 from presta.app.tasks import copy
+from presta.app.lims import update_delivery_details
 from presta.app.router import trigger_event, dispatch_event
 
 from presta.utils import path_exists, get_conf, format_dataset_filename
@@ -34,31 +36,35 @@ SAMPLE_TYPES_TOSKIP = ['FLOWCELL', 'POOL']
 class DeliveryWorkflow(object):
     def __init__(self, args=None, logger=None):
         self.logger = logger
-        self.destination = args.destination
+
         self.dry_run = args.dry_run
         self.md5_check = args.md5_check
 
         self.conf = get_conf(logger, args.config_file)
         self.io_conf = self.conf.get_io_section()
 
-        self.batch_id = args.batch_id
+        self.delivery_id = args.delivery_id
         c = Client(conf=self.conf, logger=self.logger)
         c.init_bika()
-        batch_info = c.bk.get_batch_info(self.batch_id)
-        if batch_info:
-            self.batch_info = batch_info
-        else:
-            logger.error('I have retrieved any information of the samples '
-                         'owned by the batch {}'.format(self.batch_id))
+        delivery_info = c.bk.get_delivery_info(delivery_id=self.delivery_id)
+        if not delivery_info:
+            logger.error('I have retrieved any information about '
+                         'delivery {}'.format(self.delivery_id))
             sys.exit()
 
-        # input path must exists as parser argument or as config file argument
-        input_path = args.input_path if args.input_path else self.io_conf.get('archive_root_path')
-        path_exists(input_path, self.logger)
-        self.input_path = input_path
+        if delivery_info and isinstance(delivery_info, list) and len(delivery_info) == 1:
+            self.delivery = delivery_info
+            self.details = self.delivery.get('details', dict())
 
-        output_path = args.output_path if args.output_path else None
-        self.output_path = output_path
+            if self.delivery.get('review_state') not in 'ready':
+                logger.error('Delivery {} is not ready to be processed '.format(self.delivery_id))
+                sys.exit()
+
+        # input path must exists as config file argument
+        input_paths = [self.io_conf.get('archive_root_path'), self.io_conf.get('staging_root_path')]
+        for input_path in input_paths:
+            path_exists(input_path, self.logger)
+        self.input_paths = input_paths
 
         inventory = args.inventory if args.inventory else None
         self.inventory = inventory
@@ -66,9 +72,12 @@ class DeliveryWorkflow(object):
         playbook_path = args.playbook_path if args.playbook_path else None
         self.playbook_path = playbook_path
 
-        self.merge = args.merge
+        self.destination = self.details.get('mode')
+        self.merge = bool(strtobool(self.details.get('merge')))
+        self.runs = self.delivery.get('runs', [])
+        self.output_path = self.details.get('path') if len(self.details.get('path')) > 0 else None
 
-    def __fs2fs_carrier(self, ipath, opath):
+    def __fs2fs_carrier(self, input_paths, opath):
 
         self.delivery_started = os.path.join(opath,
                                              self.batch_id,
@@ -84,16 +93,36 @@ class DeliveryWorkflow(object):
                                             self.batch_id,
                                             self.io_conf.get('merge_completed_file'))
 
-        bids = [_ for _ in self.batch_info.keys() if self.batch_info[_].get(
+        bids = [_ for _ in self.delivery.samples_info.keys() if self.delivery.samples_info[_].get(
             'type') not in SAMPLE_TYPES_TOSKIP]
-        self.logger.info('Looking for files related to {} Bika ids'.format(
-            len(bids)))
-        self.logger.info('Starting from {}'.format(ipath))
+
         if len(bids) > 0:
-            ensure_dir(os.path.join(opath, self.batch_id))
+            for id, info in self.delivery.samples_info.iteritems():
+                batch_id = info.get('batch_id')
+                path = os.path.join(opath, batch_id)
+                if not os.path.exists(path):
+                    ensure_dir(path)
+
+        self.logger.info('Looking for files related to {} Bika ids'.format(len(bids)))
 
         dm = DatasetsManager(self.logger, bids)
-        datasets_info, count = dm.collect_fastq_from_fs(ipath)
+        for path in input_paths:
+            if self.runs and isinstance(self.runs, list) and len(self.runs) > 0:
+                for run in self.runs:
+                    ipath = os.path.join(path, run)
+                    if os.path.exists(ipath):
+                        self.logger.info('Starting from {}'.format(ipath))
+                        datasets_info, count = dm.collect_fastq_from_fs(ipath)
+                        self.logger.info("found {} files in {}".format(count, ipath))
+            else:
+                ipath = path
+                if os.path.exists(ipath):
+                    self.logger.info('Starting from {}'.format(ipath))
+                    datasets_info, count = dm.collect_fastq_from_fs(ipath)
+                    self.logger.info("found {} files in {}".format(count, ipath))
+
+        datasets_info = dm.fastq_collection
+        count = dm.fastq_counter
 
         self.logger.info("found {} files".format(count))
 
@@ -101,7 +130,7 @@ class DeliveryWorkflow(object):
 
         if not self.dry_run:
             dispatch_event.si(event='delivery_started',
-                              params=dict(progress_status_file=self.delivery_started)
+                              params=dict(progress_status_file=self.delivery_started, delivery_id=self.delivery_id)
                               ).delay()
 
         for bid in bids:
@@ -211,12 +240,12 @@ class DeliveryWorkflow(object):
                         task_ids.extend(datasets['tsk'])
 
             trigger_event.si(event='delivery_completed',
-                             params=dict(progress_status_file=self.delivery_completed),
+                             params=dict(progress_status_file=self.delivery_completed, delivery_id=self.delivery_id),
                              tasks=task_ids).delay()
 
             if self.merge:
                 trigger_event.si(event='merge_completed',
-                                 params=dict(progress_status_file=self.merge_completed),
+                                 params=dict(progress_status_file=self.merge_completed, delivery_id=self.delivery_id),
                                  tasks=task_ids).delay()
 
     def __execute_playbook(self, playbook, inventory_file,
@@ -262,16 +291,16 @@ class DeliveryWorkflow(object):
         return results
 
     def run(self):
-        if self.destination == 'path':
+        if self.destination == 'MOUNT':
 
-            output_path = self.output_path if self.output_path else self.io_conf.get('ds_export_path')
+            output_path = self.output_path
 
             # if not path_exists(output_path, logger, force=False):
             #     ensure_dir(output_path)
             # path_exists(output_path, logger)
-            self.__fs2fs_carrier(self.input_path, output_path)
+            self.__fs2fs_carrier(self.input_paths, output_path)
 
-        if self.destination == 'ftp':
+        if self.destination == 'FTP':
             def pass_gen(length):
                 import string
                 import random
@@ -314,7 +343,12 @@ class DeliveryWorkflow(object):
                                   random_user)
             path_exists(output_path, self.logger)
 
-            self.__fs2fs_carrier(self.input_path, output_path)
+            update_delivery_details.si(delivery_id=self.delivery_id,
+                                       user=random_user,
+                                       password=random_clear_text_password,
+                                       path=output_path).delay()
+
+            self.__fs2fs_carrier(self.input_paths, output_path)
 
 
 help_doc = """
@@ -323,19 +357,12 @@ Handle the delivery of NGS data obtained from the pre-processing step
 
 
 def make_parser(parser):
-    parser.add_argument('--batch_id', metavar="STRING",
-                        help="Batch id from BikaLims", required=True)
-    parser.add_argument('--destination', '-d', type=str, choices=DESTINATIONS,
-                        help='where datasets have to be delivered',
-                        required=True)
-    parser.add_argument('--merge', action='store_true', default=False,
-                        help='Merge fastq sample from different lanes.')
+    parser.add_argument('--delivery_id', '-d', metavar="STRING",
+                        help="Delivery id from BikaLims", required=True)
+
     parser.add_argument('--dry_run', action='store_true', default=False,
                         help='Delivery will be only described.')
-    parser.add_argument('--input_path', '-i', metavar="PATH",
-                        help="Where input datasets are stored")
-    parser.add_argument('--output_path', '-o', metavar="PATH",
-                        help="Where output datasets have to be stored")
+
     parser.add_argument('--playbook_path', metavar="PATH",
                         help="Path to playbooks dir")
     parser.add_argument('--inventory', metavar="PATH",

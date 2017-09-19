@@ -60,3 +60,21 @@ def check_rd_ready_to_be_staged():
                       params=dict(emit_events=True),
                       ).delay()
     return True
+
+
+@app.task(name='presta.app.cron.check_rd_ready_to_be_backed_up')
+def check_rd_ready_to_be_backed_up():
+    logger.info('Cron Task: searching for rundir ready to be backed up...')
+    dispatch_event.si(event='check_rd_to_backup',
+                      params=dict(emit_events=True),
+                      ).delay()
+    return True
+
+
+@app.task(name='presta.app.cron.check_deliveries_in_ready_status')
+def check_deliveries_in_ready_status():
+    logger.info('Cron Task: searching for deliveries in ready status...')
+    dispatch_event.si(event='check_deliveries_to_process',
+                      params=dict(emit_events=True),
+                      ).delay()
+    return True

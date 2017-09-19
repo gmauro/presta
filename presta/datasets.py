@@ -10,6 +10,8 @@ class DatasetsManager(object):
     def __init__(self, logger, ids):
         self.ids = ids
         self.logger = logger
+        self.fastq_collection = dict()
+        self.fastq_counter = 0
 
     def collect_fastq_from_fs(self, base_path):
         results = dict()
@@ -44,8 +46,14 @@ class DatasetsManager(object):
                                  )
                 if _id not in results:
                     results[_id] = []
+                if _id not in self.fastq_collection:
+                    self.fastq_collection[_id] = []
+
                 results[_id].append(list_item)
+                self.fastq_collection[_id].append(list_item)
+
                 count += 1
+                self.fastq_counter += 1
 
         return results, count
 

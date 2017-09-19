@@ -695,6 +695,11 @@ def search_rd_to_archive(**kwargs):
                 archive_task.delay()
 
 
+@app.task(name='presta.app.tasks.search_rd_to_backup')
+def search_rd_to_backup(**kwargs):
+    return None
+
+
 @app.task(name='presta.app.tasks.search_rd_to_stage')
 def search_rd_to_stage(**kwargs):
     emit_events = kwargs.get('emit_events', False)
@@ -731,7 +736,6 @@ def search_rd_to_stage(**kwargs):
                     set_progress_status.si(progress_status_file=staging_completed_file),
                     )
                 stage_task.delay()
-
 
 @app.task(name='presta.app.tasks.archive_rd')
 def archive_rd(**kwargs):

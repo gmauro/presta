@@ -2,8 +2,9 @@ from __future__ import absolute_import
 
 from . import app
 from presta.app.tasks import run_presta_check, run_presta_proc, run_presta_qc, run_presta_sync, merge, copy_qc_dirs, \
-    set_progress_status, search_rd_to_archive, search_rd_to_stage, generate_md5_checksum
-from presta.app.lims import search_batches_to_sync, search_worksheets_to_sync, search_samples_to_sync
+    set_progress_status, search_rd_to_archive, search_rd_to_stage, generate_md5_checksum, search_rd_to_backup
+from presta.app.lims import search_batches_to_sync, search_worksheets_to_sync, search_samples_to_sync, \
+    search_deliveries_to_sync, set_delivery_started, set_delivery_completed
 
 from celery.result import AsyncResult
 from celery.states import SUCCESS, FAILURE
@@ -31,6 +32,15 @@ def check_rd_to_stage(params):
     logger.info('Received event "{}". Run task "{}"'.format(
         check_rd_to_stage.__name__,
         search_rd_to_stage.__name__)
+    )
+
+    search_rd_to_stage.si(**params).delay()
+
+@task
+def check_rd_to_backup(params):
+    logger.info('Received event "{}". Run task "{}"'.format(
+        check_rd_to_backup.__name__,
+        search_rd_to_backup.__name__)
     )
 
     search_rd_to_stage.si(**params).delay()
@@ -104,21 +114,24 @@ def qc_completed(params):
 
 @task
 def delivery_started(params):
-    logger.info('Received event "{}". Run tasks "{}" '.format(
+    logger.info('Received event "{}". Run tasks "{}" - "{}"'.format(
         delivery_started.__name__,
-        set_progress_status.__name__)
+        set_progress_status.__name__,
+        set_delivery_started.__name__)
     )
     set_progress_status.si(**params).delay()
+    set_delivery_started.si(**params).delay()
 
 
 @task
 def delivery_completed(params):
-    logger.info('Received event "{}". Run tasks "{}" '.format(
+    logger.info('Received event "{}". Run tasks "{}" - "{}"'.format(
         delivery_completed.__name__,
-        set_progress_status.__name__)
+        set_progress_status.__name__,
+        set_delivery_completed.__name__)
     )
     set_progress_status.si(**params).delay()
-
+    set_delivery_completed.si(**params).delay()
 
 @task
 def merge_started(params):
@@ -131,11 +144,14 @@ def merge_started(params):
 
 @task
 def merge_completed(params):
-    logger.info('Received event "{}". Run tasks "{}" '.format(
+    logger.info('Received event "{}". Run tasks "{}" - "{}"'.format(
         merge_completed.__name__,
-        set_progress_status.__name__)
+        set_progress_status.__name__,
+        set_delivery_completed.__name__)
     )
     set_progress_status.si(**params).delay()
+    set_delivery_completed.si(**params).delay()
+
 
 @task
 def staging_started(params):
@@ -231,6 +247,17 @@ def get_md5_checksum(params):
 
     md5_task = generate_md5_checksum.si(**params).delay()
     return md5_task.task_id
+
+
+@task
+def check_deliveries_to_process(params):
+    logger.info('Received event "{}". Run task "{}"'.format(
+        check_deliveries_to_process.__name__,
+        search_deliveries_to_sync.__name__)
+    )
+
+    search_deliveries_to_sync.si(**params).delay()
+
 
 @task
 def nothing_to_do(params):
