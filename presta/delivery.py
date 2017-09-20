@@ -44,21 +44,22 @@ class DeliveryWorkflow(object):
         self.io_conf = self.conf.get_io_section()
 
         self.delivery_id = args.delivery_id
+        
         c = Client(conf=self.conf, logger=self.logger)
         c.init_bika()
         delivery_info = c.bk.get_delivery_info(delivery_id=self.delivery_id)
-        if not delivery_info:
-            logger.error('I have retrieved any information about '
+        if not delivery_info or not isinstance(delivery_info, dict):
+            self.logger.error('I have retrieved any information about '
                          'delivery {}'.format(self.delivery_id))
             sys.exit()
-
-        if delivery_info and isinstance(delivery_info, list) and len(delivery_info) == 1:
-            self.delivery = delivery_info
-            self.details = self.delivery.get('details', dict())
-
-            if self.delivery.get('review_state') not in 'ready':
-                logger.error('Delivery {} is not ready to be processed '.format(self.delivery_id))
-                sys.exit()
+                
+        self.delivery = delivery_info
+        self.details = self.delivery.get('details', dict())
+        self.samples_info = self.delivery.get('samples_info', dict())
+        
+        if self.delivery.get('review_state') not in 'ready':
+            self.logger.error('Delivery {} is not ready to be processed '.format(self.delivery_id))
+            sys.exit()
 
         # input path must exists as config file argument
         input_paths = [self.io_conf.get('archive_root_path'), self.io_conf.get('staging_root_path')]
@@ -73,34 +74,30 @@ class DeliveryWorkflow(object):
         self.playbook_path = playbook_path
 
         self.destination = self.details.get('mode')
-        self.merge = bool(strtobool(self.details.get('merge')))
-        self.runs = self.delivery.get('runs', [])
-        self.output_path = self.details.get('path') if len(self.details.get('path')) > 0 else None
+        self.merge = bool(self.details.get('merge'))
+        self.runs = self.details.get('runs', [])
+        self.output_path = self.details.get('path') #if self.details.get('path') or len(self.details.get('path')) > 0 else None
 
     def __fs2fs_carrier(self, input_paths, opath):
 
         self.delivery_started = os.path.join(opath,
-                                             self.batch_id,
                                              self.io_conf.get('delivery_started_file'))
         self.delivery_completed = os.path.join(opath,
-                                               self.batch_id,
                                                self.io_conf.get('delivery_completed_file'))
 
         self.merge_started = os.path.join(opath,
-                                          self.batch_id,
                                           self.io_conf.get('merge_started_file'))
         self.merge_completed = os.path.join(opath,
-                                            self.batch_id,
                                             self.io_conf.get('merge_completed_file'))
 
-        bids = [_ for _ in self.delivery.samples_info.keys() if self.delivery.samples_info[_].get(
+        bids = [_ for _ in self.delivery['samples_info'].keys() if self.delivery['samples_info'][_].get(
             'type') not in SAMPLE_TYPES_TOSKIP]
 
         if len(bids) > 0:
-            for id, info in self.delivery.samples_info.iteritems():
+            for id, info in self.delivery['samples_info'].iteritems():
                 batch_id = info.get('batch_id')
                 path = os.path.join(opath, batch_id)
-                if not os.path.exists(path):
+                if not self.dry_run and not os.path.exists(path):
                     ensure_dir(path)
 
         self.logger.info('Looking for files related to {} Bika ids'.format(len(bids)))
@@ -111,13 +108,13 @@ class DeliveryWorkflow(object):
                 for run in self.runs:
                     ipath = os.path.join(path, run)
                     if os.path.exists(ipath):
-                        self.logger.info('Starting from {}'.format(ipath))
+                        self.logger.info('Searching in {}'.format(ipath))
                         datasets_info, count = dm.collect_fastq_from_fs(ipath)
                         self.logger.info("found {} files in {}".format(count, ipath))
             else:
                 ipath = path
                 if os.path.exists(ipath):
-                    self.logger.info('Starting from {}'.format(ipath))
+                    self.logger.info('Searching in  {}'.format(ipath))
                     datasets_info, count = dm.collect_fastq_from_fs(ipath)
                     self.logger.info("found {} files in {}".format(count, ipath))
 
@@ -134,7 +131,7 @@ class DeliveryWorkflow(object):
                               ).delay()
 
         for bid in bids:
-            sample_label = self.batch_info[bid].get('client_sample_id')
+            sample_label = self.samples_info[bid].get('client_sample_id')
 
             if bid not in to_be_merged:
                 to_be_merged[bid] = dict()
@@ -145,6 +142,8 @@ class DeliveryWorkflow(object):
                     read = f.get('read_label')
                     lane = f.get('lane')
                     ext = f.get('file_ext')
+                    
+                    batch_id = self.samples_info[bid].get('batch_id')
 
                     filename = format_dataset_filename(sample_label=sample_label,
                                                        lane=lane,
@@ -152,7 +151,7 @@ class DeliveryWorkflow(object):
                                                        ext=ext,
                                                        uid=True)
 
-                    dst = os.path.join(opath, self.batch_id, filename)
+                    dst = os.path.join(opath, batch_id, filename)
 
                     self.logger.info("Coping {} into {}".format(src, dst))
 
@@ -202,7 +201,7 @@ class DeliveryWorkflow(object):
                                   ).delay()
 
             for bid, file_ext in to_be_merged.iteritems():
-                sample_label = self.batch_info[bid].get('client_sample_id')
+                sample_label = self.samples_info[bid].get('client_sample_id')
                 for ext, reads in file_ext.iteritems():
                     for read, datasets in reads.iteritems():
 
@@ -210,7 +209,7 @@ class DeliveryWorkflow(object):
                                                            read=read,
                                                            ext=ext)
                         src = datasets['dst']
-                        dst = os.path.join(opath, self.batch_id, filename)
+                        dst = os.path.join(opath, batch_id, filename)
                         tsk = datasets['tsk']
 
                         self.logger.info("Merging {} into {}".format(" ".join(src), dst))
