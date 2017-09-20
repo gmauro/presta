@@ -14,7 +14,7 @@ MAINTAINER = ", ".join(t[0] for t in MAINTAINER_INFO)
 MAINTAINER_EMAIL = ", ".join("<%s>" % t[1] for t in MAINTAINER_INFO)
 
 setup(name="presta",
-      version='0.4',
+      version='0.5',
       description="Utility to process sequencing data",
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,

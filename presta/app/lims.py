@@ -322,6 +322,7 @@ def run_presta_delivery(**kwargs):
         if emit_events:
             cmd_line.append('--emit_events')
 
+        logger.info('Running {}'.format(cmd_line))
         result = runJob(cmd_line, logger)
         return True if result else False
 
