@@ -10,6 +10,8 @@ import sys
 import subprocess
 import uuid
 import hashlib
+import datetime
+import json
 
 import xml.etree.ElementTree as ET
 from alta import ConfigurationFromYamlFile
@@ -69,6 +71,48 @@ class IEMRunInfoReader:
             return False
 
         return True
+
+
+class LogBook:
+    """
+    Logbook manager
+    """
+
+    def __init__(self, filename):
+        self.filename = filename
+        self.logfile = None
+        self.logbook = dict()
+
+    def _open(self, reset=False):
+        if reset:
+            self.logfile = open(file=self.filename, mode='w')
+        else:
+            self.logfile = open(file=self.filename, mode='a')
+
+    def _write(self):
+        self._open()
+        logbook = json.dump(self.logbook)
+        self.logfile.write(logbook)
+        self._close()
+
+    def _close(self):
+        self.logfile.close()
+
+    def reset(self):
+        self._open(reset=True)
+
+    def start(self, task_name, args=None):
+        self.logbook.update(task_name=task_name)
+        self.logbook.update(args=args)
+        self.logbook.update(start_time=datetime.datetime.now())
+
+    def end(self):
+        self.logbook.update(end_time=datetime.datetime.now())
+        execution_time = self.logbook.get('end_time') - self.logbook.get('start_time')
+        self.logbook.update(execution_time=execution_time)
+        self._write()
+
+
 
 
 class IEMSampleSheetReader(csv.DictReader):

@@ -9,6 +9,7 @@ import drmaa
 from grp import getgrgid
 from presta.utils import IEMSampleSheetReader
 from presta.utils import IEMRunInfoReader
+from presta.utils import LogBook
 from presta.utils import runJob
 from presta.utils import get_conf
 from presta.utils import touch
@@ -362,7 +363,11 @@ def sanitize_metadata(**kwargs):
     ir_conf = kwargs.get('conf')
     rundir_label = kwargs.get('rd_label')
     samplesheet_filename = kwargs.get('ssht_filename')
+    logbook_path = kwargs.get('logbook_path')
     sanitize = kwargs.get('sanitize')
+
+    logbook = LogBook(filename=logbook_path)
+    logbook.start(task_name=bcl2fastq.__name__, args=kwargs)
 
     if sanitize:
         rundir_ipath = os.path.join(ir_conf['runs_collection'],
@@ -379,6 +384,8 @@ def sanitize_metadata(**kwargs):
             _set_imetadata(ir_conf=ir_conf,
                            ipath=rundir_ipath,
                            imetadata=imetadata)
+
+    logbook.end()
 
 
 @app.task(name='presta.app.tasks.copy_samplesheet_from_irods',
@@ -506,6 +513,7 @@ def bcl2fastq(**kwargs):
     rd_path = kwargs.get('rd_path')
     ds_path = kwargs.get('ds_path')
     ssht_path = kwargs.get('ssht_path')
+    logbook_path = kwargs.get('logbook_path')
     run_info_file_path = kwargs.get('run_info_path')
     no_lane_splitting = kwargs.get('no_lane_splitting', False)
     with_failed_reads = kwargs.get('with_failed_reads', False)
@@ -552,6 +560,8 @@ def bcl2fastq(**kwargs):
                                     samplesheet_arg, ' '.join(options)]))
     logger.info('Executing {}'.format(cmd_line))
 
+    logbook = LogBook(filename=logbook_path)
+    logbook.start(task_name=bcl2fastq.__name__, args=kwargs)
     if submit_to_batch_scheduler:
         home = os.path.expanduser("~")
         launcher = kwargs.get('launcher', 'launcher')
@@ -567,7 +577,7 @@ def bcl2fastq(**kwargs):
             output = runJob(cmd_line, logger)
     else:
         output = runJob(cmd_line, logger)
-
+    logbook.end()
     return True if output else False
 
 

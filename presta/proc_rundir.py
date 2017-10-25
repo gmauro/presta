@@ -46,6 +46,11 @@ class PreprocessingWorkflow(object):
             else os.path.join(self.io_conf.get('qc_export_basepath'),
                               rd_label)
 
+        logbook_path = args.logbook if args.logbook \
+            else os.path.join(self.io_conf.get('archive_root_path'),
+                              rd_label,
+                              self.io_conf.get('logbook_filename'))
+
         run_info_path = os.path.join(
             rd_path,
             self.io_conf.get('run_info_filename')
@@ -69,6 +74,10 @@ class PreprocessingWorkflow(object):
         self.samplesheet = dict(
             path=ssheet_path,
             filename=os.path.basename(ssheet_path)
+        )
+        self.logbook = dict(
+            path=logbook_path,
+            filename=os.path.basename(logbook_path)
         )
         self.run_info = dict(
             path=run_info_path,
@@ -137,17 +146,20 @@ class PreprocessingWorkflow(object):
             sanitize_metadata.si(conf=self.ir_conf,
                                  ssht_filename=self.samplesheet['filename'],
                                  rd_label=self.rd['label'],
-                                 sanitize=check_sanitize_metadata
+                                 sanitize=check_sanitize_metadata,
+                                 logbook_path=self.logbook['path']
                                  ),
 
             copy_run_info_to_irods.si(conf=self.ir_conf,
                                       run_info_path=self.run_info['path'],
-                                      rd_label=self.rd['label']
+                                      rd_label=self.rd['label'],
+                                      logbook_path=self.logbook['path']
                                       ),
 
             copy_run_parameters_to_irods.si(conf=self.ir_conf,
                                             run_parameters_path=self.run_parameters['path'],
-                                            rd_label=self.rd['label']
+                                            rd_label=self.rd['label'],
+                                            logbook_path=self.logbook['path']
                                             ),
         )
 
@@ -156,13 +168,15 @@ class PreprocessingWorkflow(object):
             copy_samplesheet_from_irods.si(conf=self.ir_conf,
                                            ssht_path=self.samplesheet['path'],
                                            rd_label=self.rd['label'],
-                                           overwrite_samplesheet=self.overwrite_samplesheet
+                                           overwrite_samplesheet=self.overwrite_samplesheet,
+                                           logbook_path=self.logbook['path']
                                            ),
 
             replace_values_into_samplesheet.si(conf=self.ir_conf,
                                                ssht_path=self.samplesheet['path'],
                                                rd_label=self.rd['label'],
-                                               overwrite_samplesheet=self.overwrite_samplesheet
+                                               overwrite_samplesheet=self.overwrite_samplesheet,
+                                               logbook_path=self.logbook['path']
                                                ),
 
         )
@@ -181,7 +195,8 @@ class PreprocessingWorkflow(object):
             replace_index_cycles_into_run_info.si(conf=self.ir_conf,
                                                   ssht_path=self.samplesheet['path'],
                                                   run_info_path=self.run_info['path'],
-                                                  rd_label=self.rd['label']),
+                                                  rd_label=self.rd['label'],
+                                                  logbook_path=self.logbook['path']),
 
             bcl2fastq.si(rd_path=self.rd['path'],
                          ds_path=self.ds['path'],
@@ -191,12 +206,14 @@ class PreprocessingWorkflow(object):
                          barcode_mismatches=self.barcode_mismatches,
                          with_failed_reads=self.with_failed_reads,
                          batch_queuing=self.batch_queuing,
-                         queue_spec=self.queues_conf.get('q_bcl2fastq')),
+                         queue_spec=self.queues_conf.get('q_bcl2fastq'),
+                         logbook_path=self.logbook['path']),
 
             replace_index_cycles_into_run_info.si(conf=self.ir_conf,
                                                   ssht_path=self.samplesheet['path'],
                                                   run_info_path=self.run_info['path'],
-                                                  rd_label=self.rd['label']),
+                                                  rd_label=self.rd['label'],
+                                                  logbook_path=self.logbook['path']),
 
             dispatch_event.si(event='fastq_ready',
                               params=dict(ds_path=self.ds['path'],
@@ -243,6 +260,9 @@ def make_parser(parser):
 
     parser.add_argument("--with_failed_reads", action='store_true',
                         help='Include all clusters in the output, even clusters that are non-PF')
+
+    parser.add_argument('--logbook', metavar="PATH",
+                        help="Logging file")
 
     parser.add_argument('--emit_events', action='store_true',
                         help='sends events to router')
