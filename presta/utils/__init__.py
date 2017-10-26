@@ -83,23 +83,19 @@ class LogBook:
         self.logfile = None
         self.logbook = dict()
 
-    def _open(self, reset=False):
-        if reset:
-            self.logfile = open(file=self.filename, mode='w')
+    def dump(self):
+        a = []
+        if not os.path.isfile(self.filename):
+            a.append(self.logbook)
+            with open(self.filename, mode='w') as f:
+                f.write(json.dumps(self.logbook, indent=4, sort_keys=True, default=str))
         else:
-            self.logfile = open(file=self.filename, mode='a')
+            with open(self.filename) as feedsjson:
+                feeds = json.load(feedsjson)
 
-    def _write(self):
-        self._open()
-        logbook = json.dump(self.logbook)
-        self.logfile.write(logbook)
-        self._close()
-
-    def _close(self):
-        self.logfile.close()
-
-    def reset(self):
-        self._open(reset=True)
+            feeds.append(self.logbook)
+            with open(self.filename, mode='w') as f:
+                f.write(json.dumps(feeds, indent=4, sort_keys=True, default=str))
 
     def start(self, task_name, args=None):
         self.logbook.update(task_name=task_name)
@@ -110,9 +106,7 @@ class LogBook:
         self.logbook.update(end_time=datetime.datetime.now())
         execution_time = self.logbook.get('end_time') - self.logbook.get('start_time')
         self.logbook.update(execution_time=execution_time)
-        self._write()
-
-
+        self.dump()
 
 
 class IEMSampleSheetReader(csv.DictReader):

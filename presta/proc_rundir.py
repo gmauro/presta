@@ -47,8 +47,7 @@ class PreprocessingWorkflow(object):
                               rd_label)
 
         logbook_path = args.logbook if args.logbook \
-            else os.path.join(self.io_conf.get('archive_root_path'),
-                              rd_label,
+            else os.path.join(ds_path,
                               self.io_conf.get('logbook_filename'))
 
         run_info_path = os.path.join(

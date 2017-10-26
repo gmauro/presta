@@ -363,11 +363,11 @@ def sanitize_metadata(**kwargs):
     ir_conf = kwargs.get('conf')
     rundir_label = kwargs.get('rd_label')
     samplesheet_filename = kwargs.get('ssht_filename')
-    logbook_path = kwargs.get('logbook_path')
     sanitize = kwargs.get('sanitize')
 
+    logbook_path = kwargs.get('logbook_path')
     logbook = LogBook(filename=logbook_path)
-    logbook.start(task_name=bcl2fastq.__name__, args=kwargs)
+    logbook.start(task_name=sanitize_metadata.__name__, args=kwargs)
 
     if sanitize:
         rundir_ipath = os.path.join(ir_conf['runs_collection'],
@@ -397,6 +397,10 @@ def copy_samplesheet_from_irods(**kwargs):
     rundir_label = kwargs.get('rd_label')
     overwrite_samplesheet = kwargs.get('overwrite_samplesheet')
 
+    logbook_path = kwargs.get('logbook_path')
+    logbook = LogBook(filename=logbook_path)
+    logbook.start(task_name=copy_samplesheet_from_irods.__name__, args=kwargs)
+
     if overwrite_samplesheet:
         ir = build_object_store(store='irods',
                                 host=ir_conf['host'],
@@ -415,6 +419,7 @@ def copy_samplesheet_from_irods(**kwargs):
             ir.sess.cleanup()
         except:
             ir.sess.cleanup()
+    logbook.end()
     return samplesheet_file_path
 
 
@@ -430,10 +435,15 @@ def copy_run_info_to_irods(**kwargs):
                               rundir_label,
                               run_info_filename)
 
+    logbook_path = kwargs.get('logbook_path')
+    logbook = LogBook(filename=logbook_path)
+    logbook.start(task_name=copy_run_info_to_irods.__name__, args=kwargs)
+
     _copy_file_into_irods(conf=ir_conf,
                           file_path=run_info_file_path,
                           irods_path=irods_path)
 
+    logbook.end()
     return run_info_file_path
 
 
@@ -445,6 +455,10 @@ def copy_run_parameters_to_irods(**kwargs):
     run_parameters_filename = os.path.basename(run_parameters_file_path)
     rundir_label = kwargs.get('rd_label')
 
+    logbook_path = kwargs.get('logbook_path')
+    logbook = LogBook(filename=logbook_path)
+    logbook.start(task_name=copy_run_parameters_to_irods.__name__, args=kwargs)
+
     irods_path = os.path.join(ir_conf['runs_collection'],
                               rundir_label,
                               run_parameters_filename)
@@ -453,6 +467,7 @@ def copy_run_parameters_to_irods(**kwargs):
                           file_path=run_parameters_file_path,
                           irods_path=irods_path)
 
+    logbook.end()
     return run_parameters_file_path
 
 
@@ -463,6 +478,10 @@ def replace_values_into_samplesheet(**kwargs):
     samplesheet_file_path = kwargs.get('ssht_path')
     overwrite_samplesheet = kwargs.get('overwrite_samplesheet')
 
+    logbook_path = kwargs.get('logbook_path')
+    logbook = LogBook(filename=logbook_path)
+    logbook.start(task_name=replace_values_into_samplesheet.__name__, args=kwargs)
+
     if overwrite_samplesheet:
         with open(samplesheet_file_path, 'r') as f:
             samplesheet = IEMSampleSheetReader(f)
@@ -471,6 +490,8 @@ def replace_values_into_samplesheet(**kwargs):
             for row in samplesheet.get_body(replace=True):
                 f.write(row)
 
+    logbook.end()
+
 
 @app.task(name='presta.app.tasks.replace_index_cycles_into_run_info',
           ignore_result=True)
@@ -478,6 +499,10 @@ def replace_index_cycles_into_run_info(**kwargs):
     ir_conf = kwargs.get('conf')
     run_info_file_path = kwargs.get('run_info_path')
     rundir_label = kwargs.get('rd_label')
+
+    logbook_path = kwargs.get('logbook_path')
+    logbook = LogBook(filename=logbook_path)
+    logbook.start(task_name=replace_index_cycles_into_run_info.__name__, args=kwargs)
 
     index_cycles_from_metadata = _get_index_cycles_from_metadata(ir_conf=ir_conf,
                                                                  rundir_label=rundir_label)
@@ -498,6 +523,8 @@ def replace_index_cycles_into_run_info(**kwargs):
 
     run_info_file = IEMRunInfoReader(run_info_file_path)
     run_info_file.set_index_cycles(index_cycles)
+
+    logbook.end()
 
 
 @app.task(name='presta.app.tasks.move', ignore_result=True)
