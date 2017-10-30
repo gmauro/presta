@@ -88,7 +88,7 @@ class LogBook:
         if not os.path.isfile(self.filename):
             a.append(self.logbook)
             with open(self.filename, mode='w') as f:
-                f.write(json.dumps(self.logbook, indent=4, sort_keys=True, default=str))
+                f.write(json.dumps(a, indent=4, sort_keys=True, default=str))
         else:
             with open(self.filename) as feedsjson:
                 feeds = json.load(feedsjson)
@@ -173,7 +173,10 @@ class IEMSampleSheetReader(csv.DictReader):
 
         for row in self.data:
             index = len(row['index']) if 'index' in row else None
-            index1 = len(row['index1']) if 'index1' in row else None
+            index1 = None
+
+            if 'index1' in row or 'index2' in row:
+                index1 = len(row['index2']) if 'index2' in row else len(row['index1'])
 
             if row['Lane'] not in barcodes_mask:
                 barcodes_mask[row['Lane']] = dict(
