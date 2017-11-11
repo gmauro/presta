@@ -1,5 +1,6 @@
-import sys
 import os
+import sys
+import textwrap
 import json
 import yaml
 
@@ -146,6 +147,24 @@ help_doc = """
 Prepare dictionaries file to start post-processing
 """
 
+input_file_doc = 'presta dict --example print an example of input file'
+
+input_file_example = '''                                                                                 
+input file example:                                                                                      
+
+ default_paths: # default path where to look for files                                                     
+   - "/default/path/1"                                                                                     
+   - "/default/path/2"                                                                                     
+ batches:                                                                                                  
+   0: # from this batchid, retrieve only these samples                                                     
+     bid: 01                                                                                               
+     samples:                                                                                              
+       - sid1                                                                                              
+       - sid2                                                                                              
+   1: # from this batchid, retrieve all the samples                                                        
+     bid: 02                                                                                               
+'''
+
 
 def make_parser(parser):
 
@@ -159,8 +178,16 @@ def make_parser(parser):
     parser.add_argument('--output_format', '-f', type=str, choices=OUTPUT_FORMAT,
                         default="json", help='Output file format')
 
+    parser.add_argument('--example', '-x', dest='show_example',
+                        action='store_true', help='print input file example')
+
+    parser.epilog = input_file_doc
+
 
 def implementation(logger, args):
+    if args.show_example:
+        print(textwrap.dedent(input_file_example))
+        sys.exit()
     workflow = DictWorkflow(args=args, logger=logger)
     workflow.run()
 
