@@ -168,12 +168,12 @@ input file example:
 
 def make_parser(parser):
 
-    parser.add_argument('--input_file', '-i', metavar="PATH", required=True,
+    parser.add_argument('--input_file', '-i', metavar="PATH",
                         help="Yaml file with a list of batch ids and/or of "
                              "sample ids from Bikalims")
 
-    parser.add_argument('--output_file', '-o', metavar="PATH", required=True,
-                        help="Where output dictionary file have to be stored")
+    parser.add_argument('--output_file', '-o', metavar="PATH",
+                        help="Absolute path to the output dictionary file")
 
     parser.add_argument('--output_format', '-f', type=str, choices=OUTPUT_FORMAT,
                         default="json", help='Output file format')
@@ -188,6 +188,14 @@ def implementation(logger, args):
     if args.show_example:
         print(textwrap.dedent(input_file_example))
         sys.exit()
+
+    if not args.input_file or not args.output_file:
+        print('****')
+        print(' Please provide input and output files')
+        print(' see: presta dict -h')
+        print('****')
+        sys.exit()
+        
     workflow = DictWorkflow(args=args, logger=logger)
     workflow.run()
 
