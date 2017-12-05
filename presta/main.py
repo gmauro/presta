@@ -1,5 +1,7 @@
 import argparse
 
+from . import __version__
+
 from alta.utils import a_logger, LOG_LEVELS
 from importlib import import_module
 
@@ -37,6 +39,8 @@ class App(object):
                             action='store_false',
                             help="Do not submit jobs to the batch system")
         parser.set_defaults(batch_queuing=True)
+        parser.add_argument('-v', '--version', action='version',
+                            version='%(prog)s {}'.format(__version__))
 
         subparsers = parser.add_subparsers(dest='subparser_name',
                                            title='subcommands',

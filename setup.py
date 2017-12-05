@@ -1,5 +1,13 @@
 import glob
+import os
 from setuptools import setup, find_packages
+
+here = os.path.abspath(os.path.dirname(__file__))
+
+with open(os.path.join(here, 'VERSION')) as f:
+    __version__ = f.read().strip()
+
+extra_files = [os.path.join(here, 'VERSION')]
 
 AUTHOR_INFO = [
   ("Gianmauro Cuccuru", "gianmauro.cuccuru@crs4.it"),
@@ -14,7 +22,7 @@ MAINTAINER = ", ".join(t[0] for t in MAINTAINER_INFO)
 MAINTAINER_EMAIL = ", ".join("<%s>" % t[1] for t in MAINTAINER_INFO)
 
 setup(name="presta",
-      version='0.5',
+      version=__version__,
       description="Utility to process sequencing data",
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
@@ -24,6 +32,7 @@ setup(name="presta",
       scripts=glob.glob('scripts/*'),
       packages=find_packages(),
       include_package_data=True,
+      package_data={'': extra_files},
       zip_safe=False,
       dependency_links=[
         "https://github.com/gmauro/alta/tarball/master#egg=alta",
