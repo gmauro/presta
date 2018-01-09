@@ -7,7 +7,9 @@ from presta.app.lims import search_batches_to_sync, search_worksheets_to_sync, s
     search_deliveries_to_sync, set_delivery_started, set_delivery_completed
 
 from celery.result import AsyncResult
-from celery.states import SUCCESS, FAILURE
+from celery.result import ResultSet
+
+import time
 
 from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
@@ -286,16 +288,10 @@ def dispatch_event(event, params):
 
 def wait_for_jobs_to_complete(tasks=list()):
 
-    status = dict()
-    task_ids = [t for t in tasks]
+    results = [AsyncResult(id) for id in tasks]
+    result_set = ResultSet(results=results)
 
-    while len(status) < len(task_ids):
-        for id in task_ids:
-            result = AsyncResult(id)
-            if result.status in [SUCCESS, FAILURE] and id not in status:
-                status[id] = result.status
+    while not result_set.ready():
+        time.sleep(30)
 
-    if FAILURE in status.values():
-        return False
-
-    return True
+    return result_set.successful()
