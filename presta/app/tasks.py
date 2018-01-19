@@ -622,7 +622,121 @@ def qc_runner(file_list, **kwargs):
                         queue_spec=kwargs.get('queue_spec')
                         ).delay()
         tasks.append(task.task_id)
+
+    task = fastq_screen.s(file_list,
+                          conf=kwargs.get('fastqscreen_config_file'),
+                          outdir=kwargs.get('fastqscreen_output_path'),
+                          aligner=kwargs.get('aligner'),
+                          batch_queuing=kwargs.get('batch_queuing'),
+                          queue_spec=kwargs.get('queue_spec')
+                          ).delay()
+    tasks.append(task.task_id)
+
     return tasks
+
+
+@app.task(name='presta.app.tasks.fastq_screen')
+def fastq_screen(fq_list, **kwargs):
+    command = 'fastq_screen'
+    output_arg = '--outdir {}'.format(kwargs.get('outdir'))
+    conf_arg = '--conf {}'.format(kwargs.get('conf'))
+    options = ['--aligner {}'.format(kwargs.get('aligner'))]
+    fq_list_arg = ' '.join(fq_list)
+
+    submit_to_batch_scheduler = kwargs.get('batch_queuing', True)
+    queue_spec = kwargs.get('queue_spec')
+
+    cmd_line = shlex.split(' '.join([command,
+                                     conf_arg,
+                                     output_arg,
+                                     ' '.join(options),
+                                     fq_list_arg]))
+
+    logger.info('Executing {}'.format(cmd_line))
+
+    if submit_to_batch_scheduler:
+        home = os.path.expanduser("~")
+        launcher = kwargs.get('launcher', 'launcher')
+
+        jt = {'jobName': command,
+              'nativeSpecification': queue_spec,
+              'remoteCommand': os.path.join(home, launcher),
+              'args': cmd_line
+              }
+        try:
+            output = runGEJob(jt)
+        except:
+            output = runJob(cmd_line, logger)
+
+    else:
+        output = runJob(cmd_line, logger)
+
+    return True if output else False
+
+
+@app.task(name='presta.app.tasks.multiqc_runner')
+def multiqc_runner(**kwargs):
+    tasks = []
+    task = multiqc.si(rd_label=kwargs.get('rd_label'),
+                      qc_dir=kwargs.get('qc_dir'),
+                      fastqscreen_dir=kwargs.get('fastqscreen_dir'),
+                      multiqc_output_path=kwargs.get('multiqc_output_path'),
+                      samplesmap_file=kwargs.get('samplesmap_file'),
+                      batch_queuing=kwargs.get('batch_queuing'),
+                      queue_spec=kwargs.get('queue_spec'),
+                      ).delay()
+
+    tasks.append(task.task_id)
+    return tasks
+
+
+@app.task(name='presta.app.tasks.multiqc')
+def multiqc(**kwargs):
+    rd_label = kwargs.get('rd_label')
+    qc_dir = kwargs.get('qc_dir')
+    fastqscreen_dir = kwargs.get('fastqscreen_dir')
+    multiqc_output_path = kwargs.get('multiqc_output_path')
+    samplesmap_file = kwargs.get('samplesmap_file')
+
+    command = 'multiqc'
+    conf_arg = '--sample-names  {}'.format(samplesmap_file) if samplesmap_file else ''
+    output_arg = '-o {}'.format(multiqc_output_path),
+    options = [
+        '-n {}'.format(rd_label),
+        '-m {}'.format(fastqc),
+        '-m {}'.format(fastq_screen),
+        '{}'.format(qc_dir),
+        '{}'.format(fastqscreen_dir)
+    ]
+
+    submit_to_batch_scheduler = kwargs.get('batch_queuing', True)
+    queue_spec = kwargs.get('queue_spec')
+
+    cmd_line = shlex.split(' '.join([command,
+                                     conf_arg,
+                                     output_arg,
+                                     ' '.join(options)]))
+
+    logger.info('Executing {}'.format(cmd_line))
+
+    if submit_to_batch_scheduler:
+        home = os.path.expanduser("~")
+        launcher = kwargs.get('launcher', 'launcher')
+
+        jt = {'jobName': command,
+              'nativeSpecification': queue_spec,
+              'remoteCommand': os.path.join(home, launcher),
+              'args': cmd_line
+              }
+        try:
+            output = runGEJob(jt)
+        except:
+            output = runJob(cmd_line, logger)
+
+    else:
+        output = runJob(cmd_line, logger)
+
+    return True if output else False
 
 
 @app.task(name='presta.app.tasks.fastqc')
