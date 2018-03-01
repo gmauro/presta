@@ -2,7 +2,8 @@
   gather_facts: True
   vars:
     group_name: galaxy
-    ftp_root_dir: /ftp_data
+    ftp_root_dir:  /ftp_data/webdav/data
+    webdav_users_path: /etc/apache2/conf
     random_user: '{{ r_user }}'
     random_clear_text_password: '{{ r_password }}'
   tasks:
@@ -31,4 +32,18 @@
     - name: change permission home directory
       become: yes
       become_method: sudo
-      shell: chmod -R 0776 {{ home_dir }}/ && chown {{ random_user }}:{{ group_name}} {{ home_dir }}
+      shell: chmod -R 0777 {{ home_dir }}/ && chown {{ random_user }}:{{ group_name}} {{ home_dir }}
+
+    - name: add user to webdav.conf
+      become: yes
+      become_method: sudo
+      template: src='webdav.conf.j2' dest='{{ webdav_users_path }}/{{ random_user }}.conf' mode=644
+
+    - name: change ownhership to webdav.conf
+      become: yes
+      become_method: sudo
+      shell: chown root:root {{ home_dir }} {{ webdav_users_path }}/{{ random_user }}.conf
+
+    - name: reload webdav.conf
+      service: name=apache2 state=reloaded
+

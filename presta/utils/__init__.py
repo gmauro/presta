@@ -7,13 +7,21 @@ import os
 import re
 import string
 import sys
+import subprocess
+import uuid
+import hashlib
+import datetime
+import json
 
 import xml.etree.ElementTree as ET
 from alta import ConfigurationFromYamlFile
 from pkg_resources import resource_filename
 
+
 SAMPLES_WITHOUT_BARCODES = [2, 8]
 DEFAULT_INDEX_CYCLES = dict(index='8', index1='8')
+PROGRESS_STATUS = dict(COMPLETED='completed', STARTED='started', TODO='todo')
+
 
 class IEMRunInfoReader:
     """
@@ -55,6 +63,50 @@ class IEMRunInfoReader:
         if write:
             self.tree.write(self.xml_file)
 
+    def is_paired_end_sequencing(self):
+        reads = self.get_reads()
+        reads = filter(lambda item: item["IsIndexedRead"] == "N", reads)
+
+        if len(reads) == 1:
+            return False
+
+        return True
+
+
+class LogBook:
+    """
+    Logbook manager
+    """
+
+    def __init__(self, filename):
+        self.filename = filename
+        self.logfile = None
+        self.logbook = dict()
+
+    def dump(self):
+        a = []
+        if not os.path.isfile(self.filename):
+            a.append(self.logbook)
+            with open(self.filename, mode='w') as f:
+                f.write(json.dumps(a, indent=4, sort_keys=True, default=str))
+        else:
+            with open(self.filename) as feedsjson:
+                feeds = json.load(feedsjson)
+
+            feeds.append(self.logbook)
+            with open(self.filename, mode='w') as f:
+                f.write(json.dumps(feeds, indent=4, sort_keys=True, default=str))
+
+    def start(self, task_name, args=None):
+        self.logbook.update(task_name=task_name)
+        self.logbook.update(args=args)
+        self.logbook.update(start_time=datetime.datetime.now())
+
+    def end(self):
+        self.logbook.update(end_time=datetime.datetime.now())
+        execution_time = self.logbook.get('end_time') - self.logbook.get('start_time')
+        self.logbook.update(execution_time=execution_time)
+        self.dump()
 
 
 class IEMSampleSheetReader(csv.DictReader):
@@ -82,41 +134,7 @@ class IEMSampleSheetReader(csv.DictReader):
         self.data = csv.DictReader(f.readlines(), delimiter=',')
 
     def barcodes_have_the_same_size(self):
-        def mean(data):
-            """Return the sample arithmetic mean of data."""
-            n = len(data)
-            if n < 1:
-                raise ValueError('mean requires at least one data point')
-            return sum(data) / float(n)
-
-        def _ss(data):
-            """Return sum of square deviations of sequence data."""
-            c = mean(data)
-            ss = sum((x - c) ** 2 for x in data)
-            return ss
-
-        def pstdev(data):
-            """Calculates the population standard deviation."""
-            n = len(data)
-
-            if n < 2:
-                raise ValueError('variance requires at least two data points')
-            ss = _ss(data)
-            pvar = ss / n  # the population variance
-            return pvar ** 0.5
-
-        lengths = []
-        to_be_verified = ['index']
-
-        for row in self.data:
-            for f in self.data.fieldnames:
-                if f in to_be_verified:
-                    lengths.append(len(row[f]))
-
-        if len(lengths) == 0:
-            return True
-
-        return True if pstdev(lengths) == float(0) else False
+        return False if self.get_barcode_mask() is None else True
 
     def get_body(self, label='Sample_Name', new_value='', replace=True):
         def sanitize(mystr):
@@ -141,7 +159,7 @@ class IEMSampleSheetReader(csv.DictReader):
                 if replace and f == label:
                     body.append(new_value)
                 else:
-                    if f in to_be_sanitized:
+                    if f in to_be_sanitized and row[f]:
                         body.append(sanitize(row[f]))
                     else:
                         body.append(row[f])
@@ -154,14 +172,22 @@ class IEMSampleSheetReader(csv.DictReader):
         barcodes_mask = dict()
 
         for row in self.data:
+            index = len(row['index']) if 'index' in row else None
+            index1 = None
+
+            if 'index1' in row or 'index2' in row:
+                index1 = len(row['index2']) if 'index2' in row else len(row['index1'])
+
             if row['Lane'] not in barcodes_mask:
                 barcodes_mask[row['Lane']] = dict(
-                    index=len(row['index']) if 'index' in row else None,
-                    index1=len(row['index1']) if 'index1' in row else None,
+                    index=index,
+                    index1=index1,
                 )
+            else:
+                if index != barcodes_mask[row['Lane']]['index'] or index1 != barcodes_mask[row['Lane']]['index1']:
+                    return None
 
         return barcodes_mask
-
 
 
 def get_conf(logger, config_file):
@@ -183,6 +209,28 @@ def path_exists(path, logger, force=True):
                                                                               force)
 
 
+def sanitize_filename(filename):
+    valid_chars = "-_.%s%s" % (string.ascii_letters, string.digits)
+    return ''.join(c for c in filename if c in valid_chars)
+
+
+def format_dataset_filename(sample_label, lane=None, read=None, ext=None, uid=False):
+    filename = sanitize_filename(sample_label)
+
+    if read:
+        filename = '_'.join(
+            [filename, lane, read]) if lane else '_'.join(
+            [filename, read])
+
+    if uid:
+        filename = '.'.join([filename, str(uuid.uuid4())])
+
+    if ext:
+        filename = '.'.join([filename, ext])
+
+    return sanitize_filename(filename)
+
+
 def paths_setup(logger, cf_from_cli=None):
     home = os.path.expanduser("~")
     presta_config_from_home = os.path.join(home, 'presta',
@@ -200,6 +248,65 @@ def paths_setup(logger, cf_from_cli=None):
     logger.debug("config file paths: {}".format(config_file_paths))
 
     return sorted(config_file_paths)[0].path
+
+
+def touch(path, logger):
+    try:
+
+        with open(path, 'a'):
+            os.utime(path, None)
+    except IOError as e:
+        logger.error("While touching {} file: {}".format(path, e.strerror))
+
+
+def read_chunks(file_handle, chunk_size=8192):
+    while True:
+        data = file_handle.read(chunk_size)
+        if not data:
+            break
+        yield data
+
+
+def get_md5(file_handle):
+    hasher = hashlib.md5()
+    for chunk in read_chunks(file_handle):
+        hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def check_progress_status(root_path, started_file, completed_file):
+    localroot, dirnames, filenames = os.walk(root_path).next()
+
+    if started_file not in filenames:
+        return PROGRESS_STATUS.get('TODO')
+    elif completed_file not in filenames:
+        return PROGRESS_STATUS.get('STARTED')
+    else:
+        started_file = os.path.join(root_path, started_file)
+        completed_file = os.path.join(root_path, completed_file)
+
+        if os.path.getmtime(started_file) > os.path.getmtime(completed_file):
+            return PROGRESS_STATUS.get('STARTED')
+
+    return PROGRESS_STATUS.get('COMPLETED')
+
+
+def runJob(cmd, logger):
+    try:
+        # subprocess.check_output(cmd)
+        process = subprocess.Popen(cmd,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
+        output = process.communicate()[0]
+        ret = process.wait()
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.info(e)
+        if e.output:
+            logger.info("command output: %s", e.output)
+        else:
+            logger.info("no command output available")
+        return False
 
 
 class WeightedPath(object):

@@ -1,5 +1,7 @@
 import argparse
 
+from . import __version__
+
 from alta.utils import a_logger, LOG_LEVELS
 from importlib import import_module
 
@@ -7,7 +9,9 @@ SUBMOD_NAMES = [
     "check_rundirs",
     "delivery",
     "proc_rundir",
-    "qc"
+    "qc",
+    "sync_lims",
+    "dictionaries",
 ]
 SUBMODULES = [import_module("%s.%s" % (__package__, n)) for n in SUBMOD_NAMES]
 
@@ -35,6 +39,8 @@ class App(object):
                             action='store_false',
                             help="Do not submit jobs to the batch system")
         parser.set_defaults(batch_queuing=True)
+        parser.add_argument('-v', '--version', action='version',
+                            version='%(prog)s {}'.format(__version__))
 
         subparsers = parser.add_subparsers(dest='subparser_name',
                                            title='subcommands',

@@ -3,7 +3,11 @@ import os
 from celery import Celery
 
 app = Celery('app',
-             include=['app.tasks'])
+             include=['app.tasks',
+                      'app.cron',
+                      'app.router',
+                      'app.lims',
+                      ])
 
 # Set default configuration module name
 os.environ.setdefault('CELERY_CONFIG_MODULE', 'app.celeryconfig')

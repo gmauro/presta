@@ -1,0 +1,51 @@
+        Alias /{{ random_user }} {{ home_dir }}
+
+        <Directory {{ home_dir }}>
+             DAV On
+             AuthType        Basic
+             AuthName        "My WebDav Directory"
+             AuthBasicProvider external
+             AuthExternal pwauth
+             Require         valid-user
+        </Directory>
+
+        <Location /{{ random_user }}/>
+                <LimitExcept PUT POST DELETE PROPPATCH MKCOL COPY MOVE LOCK UNLOCK>
+                   Require user {{ random_user }}
+                </LimitExcept>
+
+                # read and write
+                <Limit PUT POST DELETE PROPPATCH MKCOL COPY MOVE LOCK UNLOCK>
+                   Require user gmauro
+                </Limit>
+
+                # make it Browser readonly
+                Options +Indexes
+                # INDEX OPTIONS
+                IndexOptions +Charset=UTF-8 +FancyIndexing +IgnoreCase +FoldersFirst +XHTML +HTMLTable +SuppressRules +SuppressDescription +NameWidth=* +IconsAreLinks
+
+                    # META VIEWPORT
+                    IndexHeadInsert "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />"
+
+                HeaderName /theme/header.html
+                ReadmeName /theme/footer.html
+                IndexStyleSheet /theme/style.css
+
+                AddIcon /theme/icons/blank.png ^^BLANKICON^^
+                AddIcon /theme/icons/folder.png ^^DIRECTORY^^
+                AddIcon /theme/icons/folder-home.png ..
+
+                AddIconByType (TXT,/theme/icons/text.png) text/*
+                AddIconByType (IMG,/theme/icons/image.png) image/*
+                AddIconByType (SND,/theme/icons/audio.png) audio/*
+                AddIconByType (VID,/theme/icons/video.png) video/*
+                AddIcon /theme/icons/archive.png .7z .bz2 .cab .fastq.gz .gz .tar
+                AddIcon /theme/icons/bin.png .bin .hex .md5
+
+                AddIconByEncoding /theme/icons/archive.png x-compress
+                DefaultIcon /theme/icons/default.png
+
+#                IndexIgnore ..
+#                IndexOptions IconsAreLinks NameWidth=* FancyIndexing SuppressLastModified FoldersFirst
+                IndexOrderDefault Ascending Name
+        </Location>
