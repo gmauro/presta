@@ -291,7 +291,13 @@ def wait_for_jobs_to_complete(tasks=list()):
     results = [AsyncResult(id) for id in tasks]
     result_set = ResultSet(results=results)
 
-    while not result_set.ready():
+    ready = False
+    while not ready:
         time.sleep(30)
+        try:
+            ready = result_set.ready()
+        except e:
+            
+
 
     return result_set.successful()
