@@ -296,8 +296,10 @@ def wait_for_jobs_to_complete(tasks=list()):
         time.sleep(30)
         try:
             ready = result_set.ready()
-        except e:
-            
+        except IOError as e:
+            print(e.message)
+            ready = False
+            pass
 
 
     return result_set.successful()
