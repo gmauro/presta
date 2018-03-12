@@ -1,0 +1,12 @@
+# Default variables used during the setup phase.
+
+expiration_time_in_months: 1
+
+delivery_user_name: sequencing
+delivery_group_name: sequencing
+
+data_path: /ftp_data/webdav
+homes_root_dir:  "{{ data_path }}/data"
+
+apache_path: /etc/apache2
+webdav_conf_path: "{{ apache_path }}/webdav_conf"

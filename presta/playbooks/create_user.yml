@@ -1,0 +1,76 @@
+- hosts: delivery
+  gather_facts: True
+  vars:
+    random_user: '{{ r_user }}'
+    random_clear_text_password: '{{ r_password }}'
+  vars_files:
+  - vars/main.yml
+  handlers:
+  - include: handlers/main.yml
+  tasks:
+    - name: create random SALT to crypt password
+      shell: cat /dev/urandom | tr -dc 'qwertQWERTasdfgASDFGzxcvbZXCVB' | head -c12
+      register: random_salt_json
+
+    - name: set random_salt var
+      set_fact: random_salt="{{random_salt_json.stdout}}"
+
+    - name: encrypt password
+      command: "mkpasswd -m sha-512 {{ random_clear_text_password }} {{ random_salt }}"
+      register: encrypted_password_json
+
+    - name: generate nextmonths
+      script: files/nextmonths {{ expiration_time_in_months }}
+      register: nm
+
+    - name: setting facts
+      set_fact:
+        encrypted_password: "{{encrypted_password_json.stdout}}"
+        home_dir: "{{homes_root_dir}}/{{random_user}}"
+        nextmonths: "{{ nm.stdout }}"
+
+    - name: create new user
+      become: true
+      become_method: sudo
+      user:
+        name: "{{ random_user }}"
+        shell: "/usr/sbin/nologin"
+        comment: "random user"
+        group: "{{ delivery_group_name }}"
+        home: "{{ home_dir }}"
+        password: "{{ encrypted_password }}"
+        state: present
+        force: yes
+        remove: yes
+        expires: "{{ nextmonths }}"
+
+    - name: change home dir permission
+      become: true
+      become_method: sudo
+      file:
+        path: "{{ home_dir }}"
+        recurse: yes
+        owner: "{{ random_user }}"
+        group: "{{ delivery_group_name}}"
+        mode: 0770
+
+    - name: add user to webdav.user.conf
+      become: true
+      become_method: sudo
+      template:
+        src: webdav.user.conf.j2
+        dest: '{{ webdav_conf_path }}/{{ random_user }}.conf'
+        owner: root
+        group: root
+        mode: 0644
+      notify:
+        - restart apache
+
+    - name: Display all variables/facts known for the random user
+      debug:
+        msg: "Username {{ random_user }} , \
+              password {{ random_clear_text_password }} , \
+              home_dir {{ home_dir }} \
+              time {{ ansible_date_time.epoch }}"
+
+

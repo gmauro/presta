@@ -16,7 +16,7 @@
 
                 # read and write
                 <Limit PUT POST DELETE PROPPATCH MKCOL COPY MOVE LOCK UNLOCK>
-                   Require user gmauro
+                   Require user {{ delivery_user_name }}
                 </Limit>
 
                 # make it Browser readonly

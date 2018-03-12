@@ -1,0 +1,17 @@
+#!/usr/bin/env python
+
+import datetime
+import time
+import sys
+
+from dateutil import relativedelta
+
+
+def main(argv):
+    months = int(argv[0]) if argv else 1
+    nextmonths = datetime.date.today() + relativedelta.relativedelta(months=months)
+    print(time.mktime(nextmonths.timetuple()))
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
