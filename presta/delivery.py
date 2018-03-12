@@ -12,7 +12,6 @@ Handle the delivery of NGS data obtained from the pre-processing step
 import os
 import sys
 
-from distutils.util import strtobool
 from ansible.parsing.dataloader import DataLoader
 from ansible.vars import VariableManager
 from ansible.inventory import Inventory
@@ -21,16 +20,15 @@ from alta.utils import ensure_dir
 from collections import namedtuple
 from client import Client
 from datasets import DatasetsManager
-from presta.app.tasks import copy
-from presta.app.lims import update_delivery_details
-from presta.app.router import trigger_event, dispatch_event
-
-from presta.utils import path_exists, get_conf, format_dataset_filename
-from celery import chain
+from .app.tasks import copy
+from .app.lims import update_delivery_details
+from .app.router import trigger_event, dispatch_event
+from .utils import path_exists, get_conf, format_dataset_filename
 
 
 DESTINATIONS = ['collection', 'path', 'library', 'ftp']
 SAMPLE_TYPES_TOSKIP = ['FLOWCELL', 'POOL']
+REVIEW_STATES_4_DELIVERY = ['ready']
 
 
 class DeliveryWorkflow(object):
@@ -49,7 +47,7 @@ class DeliveryWorkflow(object):
         c.init_bika()
         delivery_info = c.bk.get_delivery_info(delivery_id=self.delivery_id)
         if not delivery_info or not isinstance(delivery_info, dict):
-            self.logger.error('I have retrieved any information about '
+            self.logger.error('No information retrieved about the '
                          'delivery {}'.format(self.delivery_id))
             sys.exit()
                 
@@ -57,12 +55,14 @@ class DeliveryWorkflow(object):
         self.details = self.delivery.get('details', dict())
         self.samples_info = self.delivery.get('samples_info', dict())
         
-        if self.delivery.get('review_state') not in 'ready':
-            self.logger.error('Delivery {} is not ready to be processed '.format(self.delivery_id))
+        if self.delivery.get('review_state') not in REVIEW_STATES_4_DELIVERY:
+            self.logger.error('Delivery {} is not ready to be '
+                              'processed '.format(self.delivery_id))
             sys.exit()
 
         # input path must exists as config file argument
-        input_paths = [self.io_conf.get('archive_root_path'), self.io_conf.get('staging_root_path')]
+        input_paths = [self.io_conf.get('archive_root_path'),
+                       self.io_conf.get('staging_root_path')]
         for input_path in input_paths:
             path_exists(input_path, self.logger)
         self.input_paths = input_paths
@@ -76,7 +76,7 @@ class DeliveryWorkflow(object):
         self.destination = self.details.get('mode')
         self.merge = bool(self.details.get('merge'))
         self.runs = self.details.get('runs', [])
-        self.output_path = self.details.get('path') #if self.details.get('path') or len(self.details.get('path')) > 0 else None
+        self.output_path = self.details.get('path')
 
     def __fs2fs_carrier(self, input_paths, opath):
 
@@ -291,12 +291,7 @@ class DeliveryWorkflow(object):
 
     def run(self):
         if self.destination == 'MOUNT':
-
             output_path = self.output_path
-
-            # if not path_exists(output_path, logger, force=False):
-            #     ensure_dir(output_path)
-            # path_exists(output_path, logger)
             self.__fs2fs_carrier(self.input_paths, output_path)
 
         if self.destination == 'FTP':
@@ -316,7 +311,7 @@ class DeliveryWorkflow(object):
             self.logger.info('user: {}'.format(random_user))
             self.logger.info('password: {}'.format(random_clear_text_password))
 
-            playbook_label = 'create_ftp_user.yml'
+            playbook_label = 'create_user.yml'
             playbook_path = self.playbook_path if self.playbook_path \
                 else os.path.expanduser(self.io_conf.get('playbooks_path'))
             playbook = os.path.join(playbook_path, playbook_label)
@@ -337,15 +332,15 @@ class DeliveryWorkflow(object):
                                               random_clear_text_password)
             self.logger.info('Playbook result: {}'.format(results))
 
-            output_path = self.output_path if self.output_path \
-                else os.path.join(self.io_conf.get('ftp_export_path'),
-                                  random_user)
+            output_path = os.path.join(self.io_conf.get('ftp_export_path'),
+                                       random_user)
             path_exists(output_path, self.logger)
 
-            update_delivery_details.si(delivery_id=self.delivery_id,
-                                       user=random_user,
-                                       password=random_clear_text_password,
-                                       path=output_path).delay()
+            if not self.dry_run:
+                update_delivery_details.si(delivery_id=self.delivery_id,
+                                           user=random_user,
+                                           password=random_clear_text_password,
+                                           path=output_path).delay()
 
             self.__fs2fs_carrier(self.input_paths, output_path)
 

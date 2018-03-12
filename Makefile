@@ -1,5 +1,5 @@
 PRESTA_DIR=${HOME}/presta
-TARGETS=all install install_user clean uninstall
+TARGETS=all install build clean uninstall
 
 all:
 	@echo "Try one of: ${TARGETS}"
