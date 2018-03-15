@@ -4,10 +4,19 @@ from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
 
+with open(os.path.join(here, 'APPNAME')) as f:
+    __appname__ = f.read().strip()
+
+with open(os.path.join(here, 'requirements.txt')) as f:
+    required = f.read().splitlines()
+
 with open(os.path.join(here, 'VERSION')) as f:
     __version__ = f.read().strip()
 
-extra_files = [os.path.join(here, 'VERSION')]
+extra_files = [os.path.join(here, 'APPNAME'),
+               os.path.join(here, 'requirements.txt'),
+               os.path.join(here, 'VERSION'),
+               ]
 
 AUTHOR_INFO = [
   ("Gianmauro Cuccuru", "gianmauro.cuccuru@crs4.it"),
@@ -21,22 +30,18 @@ AUTHOR_EMAIL = ", ".join("<%s>" % t[1] for t in AUTHOR_INFO)
 MAINTAINER = ", ".join(t[0] for t in MAINTAINER_INFO)
 MAINTAINER_EMAIL = ", ".join("<%s>" % t[1] for t in MAINTAINER_INFO)
 
-setup(name="presta",
+setup(name=__appname__,
       version=__version__,
       description="Utility to process sequencing data",
       author=AUTHOR,
       author_email=AUTHOR_EMAIL,
       maintainer=MAINTAINER,
       maintainer_email=MAINTAINER_EMAIL,
-      install_requires=['alta', 'celery==4.0.0', 'drmaa', 'ansible==2.1.0.0'],
+      install_requires=required,
       scripts=glob.glob('scripts/*'),
       packages=find_packages(),
-      include_package_data=True,
       package_data={'': extra_files},
       zip_safe=False,
-      dependency_links=[
-        "https://github.com/gmauro/alta/tarball/master#egg=alta",
-      ],
       license='MIT',
       platforms="Posix; MacOS X; Windows",
       classifiers=["Development Status :: 4 - Beta",

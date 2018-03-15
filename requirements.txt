@@ -1,0 +1,4 @@
+alta
+ansible==2.1.0.0
+celery==4.0.0
+drmaa
