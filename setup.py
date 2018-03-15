@@ -16,6 +16,7 @@ with open(os.path.join(here, 'VERSION')) as f:
 extra_files = [os.path.join(here, 'APPNAME'),
                os.path.join(here, 'requirements.txt'),
                os.path.join(here, 'VERSION'),
+               os.path.join(here, 'presta', 'config', 'presta_config.yml'),
                ]
 
 AUTHOR_INFO = [

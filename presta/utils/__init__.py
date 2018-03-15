@@ -16,6 +16,7 @@ import json
 import xml.etree.ElementTree as ET
 from alta import ConfigurationFromYamlFile
 from pkg_resources import resource_filename
+from ..__details__ import __appname__
 
 
 SAMPLES_WITHOUT_BARCODES = [2, 8]
@@ -233,9 +234,9 @@ def format_dataset_filename(sample_label, lane=None, read=None, ext=None, uid=Fa
 
 def paths_setup(logger, cf_from_cli=None):
     home = os.path.expanduser("~")
-    presta_config_from_home = os.path.join(home, 'presta',
+    presta_config_from_home = os.path.join(home, __appname__,
                                            'presta_config.yml')
-    presta_config_from_package = resource_filename('presta',
+    presta_config_from_package = resource_filename(__appname__,
                                                    'config/presta_config.yml')
     config_file_paths = []
     if cf_from_cli and path_exists(cf_from_cli, logger, force=False):
