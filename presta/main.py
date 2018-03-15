@@ -1,6 +1,6 @@
 import argparse
 
-from . import __version__
+from .__details__ import *
 
 from comoda import a_logger, LOG_LEVELS
 from importlib import import_module
@@ -23,7 +23,7 @@ class App(object):
             m.do_register(self.supported_submodules)
 
     def make_parser(self):
-        parser = argparse.ArgumentParser(prog='presta',
+        parser = argparse.ArgumentParser(prog=__appname__,
                                          description='Preprocessing of sequencing data')
         parser.add_argument('--config_file', type=str, metavar='PATH',
                             help='configuration file',
@@ -55,10 +55,10 @@ class App(object):
         return parser
 
 
-def main(argv):
+def main():
     app = App()
     parser = app.make_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args()
     logger = a_logger('main', level=args.loglevel, filename=args.logfile)
 
-    args.func(logger, args)
+    args.func(logger, args) if hasattr(args, 'func') else parser.print_help()
