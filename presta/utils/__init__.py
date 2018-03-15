@@ -17,6 +17,9 @@ import xml.etree.ElementTree as ET
 from alta import ConfigurationFromYamlFile
 from pkg_resources import resource_filename
 from ..__details__ import __appname__
+from appdirs import *
+from comoda import ensure_dir
+from shutil import copyfile
 
 
 SAMPLES_WITHOUT_BARCODES = [2, 8]
@@ -200,9 +203,11 @@ def get_conf(logger, config_file):
 
 def path_exists(path, logger, force=True):
     def file_missing(path, logger, force):
+        msg = "path - {} - doesn't exists".format(path)
         if force:
-            logger.error("path - {} - doesn't exists".format(path))
+            logger.error(msg)
             sys.exit()
+        logger.warning(msg)
         return False
 
     return True if os.path.exists(os.path.expanduser(path)) else file_missing(path,
@@ -233,22 +238,35 @@ def format_dataset_filename(sample_label, lane=None, read=None, ext=None, uid=Fa
 
 
 def paths_setup(logger, cf_from_cli=None):
-    home = os.path.expanduser("~")
-    presta_config_from_home = os.path.join(home, __appname__,
+    """
+    Create a config file if does not exists, copying it from the package default
+    Return a configuration file path from cli args if present, otherwise return
+    a path from the user_config_dir
+    :return: Path
+    """
+    presta_config_dir = os.path.join(user_config_dir(__appname__))
+    presta_config_from_home = os.path.join(presta_config_dir,
                                            'presta_config.yml')
-    presta_config_from_package = resource_filename(__appname__,
-                                                   'config/presta_config.yml')
+
+    if not path_exists(presta_config_from_home, logger, force=False):
+        logger.info('Creating config path {}'.format(presta_config_dir))
+        ensure_dir(presta_config_dir)
+        presta_config_from_package = resource_filename(__appname__,
+                                                       'config/presta_config.yml')
+        copyfile(presta_config_from_package,
+                 presta_config_from_home)
+
     config_file_paths = []
     if cf_from_cli and path_exists(cf_from_cli, logger, force=False):
         config_file_paths.append(WeightedPath(cf_from_cli, 0))
     if path_exists(presta_config_from_home, logger, force=False):
         config_file_paths.append(WeightedPath(presta_config_from_home, 1))
-    if path_exists(presta_config_from_package, logger, force=False):
-        config_file_paths.append(WeightedPath(presta_config_from_package, 2))
 
     logger.debug("config file paths: {}".format(config_file_paths))
 
-    return sorted(config_file_paths)[0].path
+    config_file_path = sorted(config_file_paths)[0].path
+    logger.info('Reading configuration from {}'.format(config_file_path))
+    return config_file_path
 
 
 def touch(path, logger):

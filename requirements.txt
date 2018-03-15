@@ -1,5 +1,6 @@
 alta
 ansible==2.1.0.0
+appdirs
 celery==4.0.0
 comoda
 drmaa
