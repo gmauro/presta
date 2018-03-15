@@ -1,4 +1,4 @@
-import glob
+# import glob
 import os
 from setuptools import setup, find_packages
 
@@ -19,12 +19,12 @@ extra_files = [os.path.join(here, 'APPNAME'),
                ]
 
 AUTHOR_INFO = [
-  ("Gianmauro Cuccuru", "gianmauro.cuccuru@crs4.it"),
-  ]
+    ("Gianmauro Cuccuru", "gianmauro.cuccuru@crs4.it"),
+]
 MAINTAINER_INFO = [
-  ("Gianmauro Cuccuru", "gianmauro.cuccuru@crs4.it"),
-  ("Rossano Atzeni", "rossano.atzeni@crs4.it"),
-  ]
+    ("Gianmauro Cuccuru", "gianmauro.cuccuru@crs4.it"),
+    ("Rossano Atzeni", "rossano.atzeni@crs4.it"),
+]
 AUTHOR = ", ".join(t[0] for t in AUTHOR_INFO)
 AUTHOR_EMAIL = ", ".join("<%s>" % t[1] for t in AUTHOR_INFO)
 MAINTAINER = ", ".join(t[0] for t in MAINTAINER_INFO)
@@ -38,7 +38,7 @@ setup(name=__appname__,
       maintainer=MAINTAINER,
       maintainer_email=MAINTAINER_EMAIL,
       install_requires=required,
-      scripts=glob.glob('scripts/*'),
+      # scripts=glob.glob('scripts/*'),
       packages=find_packages(),
       package_data={'': extra_files},
       zip_safe=False,
@@ -50,7 +50,9 @@ setup(name=__appname__,
                    "Operating System :: OS Independent",
                    "Topic :: Utilities",
                    "Programming Language :: Python :: 2.7"],
+      entry_points={
+          'console_scripts': [
+              'presta=presta.main:main',
+          ],
+      },
       )
-
-
-
