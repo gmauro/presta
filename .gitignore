@@ -6,3 +6,6 @@
 
 # Python
 *.pyc
+*.egg-info
+dist
+build
