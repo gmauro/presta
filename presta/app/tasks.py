@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from . import app
 from alta.objectstore import build_object_store
-from alta.utils import ensure_dir
+from comoda import ensure_dir
 from celery import group
 from celery import chain
 import drmaa

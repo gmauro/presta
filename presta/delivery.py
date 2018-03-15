@@ -16,7 +16,7 @@ from ansible.parsing.dataloader import DataLoader
 from ansible.vars import VariableManager
 from ansible.inventory import Inventory
 from ansible.executor.playbook_executor import PlaybookExecutor
-from alta.utils import ensure_dir
+from comoda import ensure_dir
 from collections import namedtuple
 from client import Client
 from datasets import DatasetsManager

@@ -2,7 +2,7 @@ import argparse
 
 from . import __version__
 
-from alta.utils import a_logger, LOG_LEVELS
+from comoda import a_logger, LOG_LEVELS
 from importlib import import_module
 
 SUBMOD_NAMES = [

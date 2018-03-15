@@ -1,7 +1,6 @@
 import os.path
-import sys
 
-from alta.utils import ensure_dir
+from comoda import ensure_dir
 from celery import chain
 from presta.app.tasks import copy_qc_dirs, rd_collect_fastq, qc_runner
 from presta.app.router import trigger_event, dispatch_event

@@ -1,6 +1,6 @@
-import os, sys
+import os
+import sys
 
-from alta.utils import ensure_dir
 from presta.utils import get_conf
 from presta.app.router import dispatch_event
 from presta.app.tasks import rd_collect_samples

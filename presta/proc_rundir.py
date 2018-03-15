@@ -1,7 +1,7 @@
 import os.path
 import sys
 
-from alta.utils import ensure_dir
+from comoda import ensure_dir
 from presta.utils import path_exists, get_conf
 from presta.app.tasks import bcl2fastq, move,  \
     rd_ready_to_be_preprocessed, \
