@@ -1,28 +1,22 @@
 from __future__ import absolute_import
 
-from . import app
-from alta.objectstore import build_object_store
-from comoda import ensure_dir
-from celery import group
-from celery import chain
 import drmaa
-from grp import getgrgid
-from presta.utils import IEMSampleSheetReader
-from presta.utils import IEMRunInfoReader
-from presta.utils import LogBook
-from presta.utils import runJob
-from presta.utils import get_conf
-from presta.utils import touch
-from presta.utils import check_progress_status, PROGRESS_STATUS
-from presta.utils import get_md5
-
-from pwd import getpwuid
 import errno
 import os
 import shlex
 import shutil
 
+from . import app
+from alta.objectstore import build_object_store
+from comoda import ensure_dir
+from celery import group
+from celery import chain
 from celery.utils.log import get_task_logger
+from grp import getgrgid
+from ..utils import IEMSampleSheetReader, IEMRunInfoReader, LogBook, runJob, \
+                    get_conf, touch, check_progress_status, PROGRESS_STATUS, \
+                    get_md5
+from pwd import getpwuid
 
 logger = get_task_logger(__name__)
 

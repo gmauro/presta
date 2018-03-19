@@ -2,11 +2,11 @@ from __future__ import absolute_import
 
 from . import app
 from alta.bims import Bims
-from presta.utils import get_conf
-from presta.utils import runJob
-from celery import chain
+from ..utils import get_conf, runJob
 
+from celery import chain
 from celery.utils.log import get_task_logger
+
 logger = get_task_logger(__name__)
 
 
@@ -77,7 +77,6 @@ def process_deliveries(deliveries):
     else:
         logger.info('No deliveries to sync')
 
-
     return True
 
 
@@ -128,7 +127,8 @@ def update_delivery_details(**kwargs):
 
     if delivery_id:
         logger.info('Update details of delivery {}'.format(delivery_id))
-        res = bika.update_delivery_details(delivery_id, user=user, password=password, path=path)
+        res = bika.update_delivery_details(delivery_id, user=user,
+                                           password=password, path=path)
         logger.info('Result {}'.format(res))
         return res.get('success')
 

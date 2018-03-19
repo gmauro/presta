@@ -1,10 +1,13 @@
 from __future__ import absolute_import
 
 from . import app
-from presta.app.tasks import run_presta_check, run_presta_proc, run_presta_qc, run_presta_sync, merge, copy_qc_dirs, \
-    set_progress_status, search_rd_to_archive, search_rd_to_stage, generate_md5_checksum, search_rd_to_backup
-from presta.app.lims import search_batches_to_sync, search_worksheets_to_sync, search_samples_to_sync, \
-    search_deliveries_to_sync, set_delivery_started, set_delivery_completed
+from .tasks import run_presta_check, run_presta_proc, run_presta_qc, \
+                   run_presta_sync, merge, copy_qc_dirs, set_progress_status, \
+                   search_rd_to_archive, search_rd_to_stage, \
+                   generate_md5_checksum, search_rd_to_backup
+from .lims import search_batches_to_sync, search_worksheets_to_sync, \
+                  search_samples_to_sync, search_deliveries_to_sync, \
+                  set_delivery_started, set_delivery_completed
 
 from celery.result import AsyncResult
 from celery.states import SUCCESS, FAILURE
@@ -36,6 +39,7 @@ def check_rd_to_stage(params):
 
     search_rd_to_stage.si(**params).delay()
 
+
 @task
 def check_rd_to_backup(params):
     logger.info('Received event "{}". Run task "{}"'.format(
@@ -45,6 +49,7 @@ def check_rd_to_backup(params):
 
     search_rd_to_stage.si(**params).delay()
 
+
 @task
 def check_rd_to_archive(params):
     logger.info('Received event "{}". Run task "{}"'.format(
@@ -53,6 +58,7 @@ def check_rd_to_archive(params):
     )
 
     search_rd_to_archive.si(**params).delay()
+
 
 @task
 def rd_ready(params):
@@ -133,6 +139,7 @@ def delivery_completed(params):
     set_progress_status.si(**params).delay()
     set_delivery_completed.si(**params).delay()
 
+
 @task
 def merge_started(params):
     logger.info('Received event "{}". Run tasks "{}" '.format(
@@ -169,6 +176,7 @@ def staging_completed(params):
         set_progress_status.__name__)
     )
     set_progress_status.si(**params).delay()
+
 
 @task
 def archiving_started(params):
@@ -237,6 +245,7 @@ def merge_datasets(params):
 
     merge_task = merge.si(**params).delay()
     return merge_task.task_id
+
 
 @task
 def get_md5_checksum(params):
