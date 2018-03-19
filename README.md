@@ -9,6 +9,8 @@ scheduling as well.
 Presta is part of a fully automated infrastructure to support bioinformatics analysis 
 of sequencing data.
 
+![Presta](images/presta.png)
+
 Tasks currently supported:  
 
 - Monitoring of the state of an Illumina rundir
