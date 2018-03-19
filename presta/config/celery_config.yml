@@ -1,0 +1,17 @@
+celery:
+    broker_url: 'amqp://guest:guest@localhost:5672'
+    result_backend: 'amqp://guest:guest@localhost:5672'
+
+    task_serializer: 'json'
+    result_serializer: 'json'
+    accept_content:
+        - 'json'
+    enable_utc: False
+    timezone: 'Europe/Rome'
+
+    task_publish_retry: True
+    task_publish_retry_policy:
+        max_retries: 10
+        interval_start: 5
+        interval_step: 5
+        interval_max: 5

@@ -3,15 +3,13 @@ Utilities used by other modules.
 """
 
 import csv
-import os
+import datetime
+import hashlib
+import json
 import re
 import string
-import sys
 import subprocess
 import uuid
-import hashlib
-import datetime
-import json
 
 import xml.etree.ElementTree as ET
 from alta import ConfigurationFromYamlFile
@@ -53,7 +51,8 @@ class IEMRunInfoReader:
             index1=next((item['NumCycles'] for item in indexed_reads
                          if item["IsIndexedRead"] == "Y" and item['Number'] != "2"), None))
 
-    def get_default_index_cycles(self):
+    @staticmethod
+    def get_default_index_cycles():
         return DEFAULT_INDEX_CYCLES
 
     def set_index_cycles(self, index_cycles, write=True):
@@ -194,8 +193,28 @@ class IEMSampleSheetReader(csv.DictReader):
         return barcodes_mask
 
 
-def get_conf(logger, config_file):
-    config_file_path = paths_setup(logger, config_file)
+class WeightedPath(object):
+    def __init__(self, path, weight):
+        self.path = path
+        self.weight = weight
+
+    def __repr__(self):
+        return '{}: {} {}'.format(self.__class__.__name__,
+                                  self.path,
+                                  self.weight)
+
+    def __cmp__(self, other):
+        if hasattr(other, 'weight'):
+            return self.weight.__cmp__(other.weight)
+
+
+def get_conf(logger, config_file_from_cli=None, profile=None):
+    profiles = {'presta': 'presta_config.yml',
+                'celery': 'celery_config.yml'}
+    default_config_file_label = profiles.get(profile, profiles['presta'])
+
+    config_file_path = config_file_setup(logger, default_config_file_label,
+                                         cf_from_cli=config_file_from_cli)
 
     # Load YAML configuration file
     return ConfigurationFromYamlFile(config_file_path)
@@ -237,30 +256,33 @@ def format_dataset_filename(sample_label, lane=None, read=None, ext=None, uid=Fa
     return sanitize_filename(filename)
 
 
-def paths_setup(logger, cf_from_cli=None):
+def config_file_setup(logger, cf_label, cf_from_cli=None):
     """
-    Create a config file if does not exists, copying it from the package default
+    Create a config file if does not exists, copying it from the package
+    default into the user_config_dir.
     Return a configuration file path from cli args if present, otherwise return
     a path from the user_config_dir
+    :param logger: logger
+    :param cf_label: label of the configuration file (required)
+    :param cf_from_cli: path to configuration file from cli arg
     :return: Path
     """
     presta_config_dir = os.path.join(user_config_dir(__appname__))
-    presta_config_from_home = os.path.join(presta_config_dir,
-                                           'presta_config.yml')
+    config_file_from_home = os.path.join(presta_config_dir, cf_label)
 
-    if not path_exists(presta_config_from_home, logger, force=False):
+    if not path_exists(config_file_from_home, logger, force=False):
         logger.info('Creating config path {}'.format(presta_config_dir))
         ensure_dir(presta_config_dir)
-        presta_config_from_package = resource_filename(__appname__,
-                                                       'config/presta_config.yml')
-        copyfile(presta_config_from_package,
-                 presta_config_from_home)
+        config_file_path = '/'.join(['config', cf_label])
+        config_file_from_package = resource_filename(__appname__,
+                                                     config_file_path)
+        copyfile(config_file_from_package, config_file_from_home)
 
     config_file_paths = []
     if cf_from_cli and path_exists(cf_from_cli, logger, force=False):
         config_file_paths.append(WeightedPath(cf_from_cli, 0))
-    if path_exists(presta_config_from_home, logger, force=False):
-        config_file_paths.append(WeightedPath(presta_config_from_home, 1))
+    if path_exists(config_file_from_home, logger, force=False):
+        config_file_paths.append(WeightedPath(config_file_from_home, 1))
 
     logger.debug("config file paths: {}".format(config_file_paths))
 
@@ -271,7 +293,6 @@ def paths_setup(logger, cf_from_cli=None):
 
 def touch(path, logger):
     try:
-
         with open(path, 'a'):
             os.utime(path, None)
     except IOError as e:
@@ -327,17 +348,3 @@ def runJob(cmd, logger):
             logger.info("no command output available")
         return False
 
-
-class WeightedPath(object):
-    def __init__(self, path, weight):
-        self.path = path
-        self.weight = weight
-
-    def __repr__(self):
-        return '{}: {} {}'.format(self.__class__.__name__,
-                                  self.path,
-                                  self.weight)
-
-    def __cmp__(self, other):
-        if hasattr(other, 'weight'):
-            return self.weight.__cmp__(other.weight)

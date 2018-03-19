@@ -1,4 +1,3 @@
-# import glob
 import os
 from setuptools import setup, find_packages
 
@@ -17,6 +16,7 @@ extra_files = [os.path.join(here, 'APPNAME'),
                os.path.join(here, 'requirements.txt'),
                os.path.join(here, 'VERSION'),
                os.path.join(here, 'presta', 'config', 'presta_config.yml'),
+               os.path.join(here, 'presta', 'config', 'celery_config.yml'),
                ]
 
 AUTHOR_INFO = [
@@ -39,7 +39,6 @@ setup(name=__appname__,
       maintainer=MAINTAINER,
       maintainer_email=MAINTAINER_EMAIL,
       install_requires=required,
-      # scripts=glob.glob('scripts/*'),
       packages=find_packages(),
       package_data={'': extra_files},
       zip_safe=False,
