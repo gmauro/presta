@@ -1,6 +1,6 @@
 APPNAME=`cat APPNAME`
-PRESTA_DIR=${HOME}/presta
-TARGETS=all  build clean install uninstall
+TARGETS=all build clean dependencies install tag uninstall
+VERSION=`cat VERSION`
 
 all:
 	@echo "Try one of: ${TARGETS}"
@@ -14,17 +14,14 @@ clean:
 	find . -name '*.pyc' -delete
 	rm -rf dist *.egg-info __pycache__ build
 
-config:
-	mkdir -p ${PRESTA_DIR}
-	if [ ! -f ${PRESTA_DIR}/presta_config.yml ]; then \
-		cp presta/config/presta_config.yml ${PRESTA_DIR}; \
-	fi
-
 dependencies: requirements.txt
 	pip install -r requirements.txt
 
-install: build config
+install: build
 	pip install dist/*.whl
+
+tag:
+	git tag v${VERSION}
 
 uninstall:
 	pip uninstall -y ${APPNAME}
