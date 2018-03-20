@@ -1,15 +1,19 @@
-# presta
+# PRESTA
 PRE-processing of Sequencing daTA  
 
-Presta handles sequencing data produced  from a large scale NGS Core facility.
+PRESTA handles sequencing data produced  from a large scale NGS Core facility.
 It leverages a reliable distributed task queue to create a messages-driven 
 automation system. Presta is  focused on real-time operation, but supports 
-scheduling as well.
+scheduling as well.  
 
-Presta is part of a fully automated infrastructure to support bioinformatics analysis 
-of sequencing data.
+Managing tasks and messages, PRESTA is so able  to automatically orchestrate 
+format conversion, demultiplexing, quality checks, LIMS update and 
+data preparation for on-site storage or delivery to external sites. 
 
-![Presta](images/presta.png)
+PRESTA is part of a fully automated infrastructure to support bioinformatics 
+analysis of sequencing data.
+
+![Presta_architecture](images/presta.png)
 
 Tasks currently supported:  
 
