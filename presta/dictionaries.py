@@ -9,7 +9,7 @@ from datasets import DatasetsManager
 
 from presta.utils import path_exists, get_conf
 
-OUTPUT_FORMAT = ['json', 'yaml']
+OUTPUT_FORMAT = ['json', 'yaml', 'tsv']
 SAMPLE_TYPES_TOSKIP = ['FLOWCELL', 'POOL']
 
 
@@ -85,12 +85,24 @@ class DictWorkflow(object):
 
     def dump(self, source, destination, ext):
         try:
-            with open(destination, 'w+') as fp:
-                if ext == 'json':
+            if ext == 'json':
+                with open(destination, 'w+') as fp:
                     json.dump(source, fp)
-                elif ext == 'yaml':
+            elif ext == 'yaml':
+                with open(destination, 'w+') as fp:
                     yaml.safe_dump(source, fp, default_flow_style=False,
                                    allow_unicode=True)
+            elif ext == 'tsv':
+                with open('.'.join([destination, 'samples', ext]), 'w+') as fp:
+                    fp.write("sample\todp\tunits\n")
+                    for k, v in source['samples'].items():
+                        fp.write("{}\t{}\t{}\n".format(k, 2500, ",".join(v)))
+                with open('.'.join([destination, 'units', ext]), 'w+') as fp:
+                    fp.write("sample\tunit\tfq1\tfq2\n")
+                    for k, v in source['units'].items():
+                        fp.write("{}\t{}\t{}\n".format(k.split('.')[2], k,
+                                                       "\t".join(v)))
+
         except OSError as e:
             self.logger.error('Data not dumped. Error: {}'.format(e))
             return False
