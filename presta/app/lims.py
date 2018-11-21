@@ -304,8 +304,18 @@ def search_deliveries_to_sync(**kwargs):
 
 @app.task(name='presta.app.lims.search_samples_to_sync')
 def search_samples_to_sync(**kwargs):
-    conf = get_conf(logger)
+    emit_events = kwargs.get('emit_events', False)
+    conf = get_conf(logger, None)
     bika_conf = conf.get_section('bika')
+    bika = __init_bika(bika_conf)
+
+    samples = bika.get_analysis_requests_ready_to_be_published()
+    
+    if emit_events:
+        pipeline = chain(
+            sync_samples.si(samples, conf=bika_conf),
+        )
+        pipeline.delay()
     return True
 
 
