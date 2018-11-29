@@ -10,6 +10,24 @@ from celery.utils.log import get_task_logger
 logger = get_task_logger(__name__)
 
 
+@app.task(name='presta.app.lims.collect_samples_from_batch')
+def collect_samples_from_batch(**kwargs):
+    batch_id = kwargs.get('batch_id')
+    bika_conf = kwargs.get('conf')
+    bika = __init_bika(bika_conf)
+
+    samples = []
+    if batch_id:
+        batch = bika.get_batch_info(batch_label=batch_id)
+        if batch and isinstance(batch, dict) and len(batch) > 0:
+            samples = [dict(
+                id=v['request_id'],
+                name=v['client_sample_id'],
+            ) for k, v in batch.iteritems()]
+
+    return samples
+
+
 @app.task(name='presta.app.lims.sync_samples')
 def sync_samples(samples, **kwargs):
     bika_conf = kwargs.get('conf')
@@ -304,8 +322,18 @@ def search_deliveries_to_sync(**kwargs):
 
 @app.task(name='presta.app.lims.search_samples_to_sync')
 def search_samples_to_sync(**kwargs):
-    conf = get_conf(logger)
+    emit_events = kwargs.get('emit_events', False)
+    conf = get_conf(logger, None)
     bika_conf = conf.get_section('bika')
+    bika = __init_bika(bika_conf)
+
+    samples = bika.get_analysis_requests_ready_to_be_published()
+
+    if emit_events:
+        pipeline = chain(
+            sync_samples.si(samples, conf=bika_conf),
+        )
+        pipeline.delay()
     return True
 
 
